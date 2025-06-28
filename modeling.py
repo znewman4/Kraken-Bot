@@ -10,7 +10,7 @@ def prepare_features_and_target(df, threshold=0.0005):
     Target = 1 if next close > current close, else 0.
     """
     df = df.copy()
-    df['target'] = ((df['close'].shift(-1) - df['close']) / df['close'] > threshold).astype(int)
+    df['target'] = (df['close'].shift(-1) - df['close']) / df['close']
     df.dropna(inplace=True)
 
     feature_cols = [col for col in df.columns if col not in ['target', 'close']]
@@ -39,19 +39,21 @@ def train_xgboost(X_train, y_train, params=None):
     Trains XGBoost classifier on the training set with optional hyperparameters.
     """
     default_params = {
+        'objective': 'reg:squarederror',
+        'eval_metric': 'rmse',
         "n_estimators": 100,  #number of trees to build
         "learning_rate": 0.1,
         "max_depth": 3,  #max depth of each tree
         "subsample": 0.8,   #frac of training rows per tree
         "colsample_bytree": 0.8, #frac of features per tree
         "use_label_encoder": False,
-        "eval_metric": "logloss" #logloss for binary
+        
     }
 
     if params: #if custom params provided 
         default_params.update(params) #override default params
 
-    model = xgb.XGBClassifier(**default_params) #create classfier using new params
+    model = xgb.XGBRegressor(**default_params) #create classfier using new params
     model.fit(X_train, y_train) #fit model to training data
     return model #we know have a first version of the model, based on training 
 
