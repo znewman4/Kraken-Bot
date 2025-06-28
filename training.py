@@ -15,8 +15,8 @@ import shap
 from src.tuning import tune_xgboost_with_cv
 from src.modeling import train_xgboost
 from src.prioritise_features import get_top_shap_features
-from sklearn.metrics import roc_auc_score
-from src.tuningtest import tune_test
+from sklearn.metrics import mean_squared_error
+from src.tuning import run_tune
 
 
 
@@ -39,7 +39,7 @@ def run_tuning(X, y):
 
     results = tune_xgboost_with_cv(X, y, param_grid)
 
-    print("Best full model AUC:", results[0]['mean_auc'])
+    print("Best full model MSE:", results[0]['mean_mse'])
 
     # Save results
     results_dir = Path("results")
