@@ -46,7 +46,7 @@ def train_xgboost(X_train, y_train, params=None):
         "max_depth": 3,  #max depth of each tree
         "subsample": 0.8,   #frac of training rows per tree
         "colsample_bytree": 0.8, #frac of features per tree
-        "use_label_encoder": False,
+        
         
     }
 
@@ -58,24 +58,4 @@ def train_xgboost(X_train, y_train, params=None):
     return model #we know have a first version of the model, based on training 
 
 
-def evaluate_model(X, y, n_splits=5, test_size=0.1, params=None):
-    """
-    Evaluates XGBoost on expanding CV folds.
-    Plots AUC scores for performance.
-    """
-    auc_scores = []
 
-    for fold, (train_idx, test_idx) in enumerate(time_series_cv_split(X, y, n_splits, test_size)):
-        X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
-        X_test, y_test = X.iloc[test_idx], y.iloc[test_idx]
-        #model is run on defined params from train_xgboost
-        model = train_xgboost(X_train, y_train, params=params)
-        #returns predicted probabilities of class 1
-        y_prob = model.predict_proba(X_test)[:, 1]
-        #AUC of 1 is perfect, 0.5 is random guessing
-        auc = roc_auc_score(y_test, y_prob)
-        auc_scores.append(auc)
-
-
-
-    return auc_scores

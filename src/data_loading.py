@@ -9,6 +9,7 @@ Created on Thu Jun 12 10:42:13 2025
 # src/data_loading.py
 
 import os
+import time
 import pandas as pd
 import krakenex
 from dotenv import load_dotenv
@@ -22,36 +23,60 @@ def get_kraken_client():
     k.secret = os.getenv("KRAKEN_API_SECRET")
     return k
 
-def fetch_ohlcv_kraken(pair='XBTUSD', interval=1):
-    """
-    Fetch OHLCV data from Kraken.
+def fetch_ohlcv_kraken(pair='XBTUSD', interval=5, since=None):
 
-    Args:
-        pair (str): Trading pair, e.g., 'XBTUSD'
-        interval (int): Candle interval in minutes (1, 5, 15, 30, 60, etc.)
-
-    Returns:
-        pd.DataFrame: OHLCV data
-    """
     k = get_kraken_client()
-    response = k.query_public('OHLC', {'pair': pair, 'interval': interval})
+    # Base params
+    params = {'pair': pair, 'interval': interval}
+    # Only include 'since' if provided (Kraken expects milliseconds)
+    if since is not None:
+        params['since'] = since
 
+    response = k.query_public('OHLC', params)
     if response.get('error'):
         raise Exception(f"Kraken API error: {response['error']}")
 
-    key = list(response['result'].keys())[0]  # Usually 'XXBTZUSD'
+    key = list(response['result'].keys())[0]
     ohlc = response['result'][key]
-    df = pd.DataFrame(ohlc, columns=[
-        'time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count'
-    ])
+    df = pd.DataFrame(
+        ohlc,
+        columns=['time','open','high','low','close','vwap','volume','count']
+    )
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df.set_index('time', inplace=True)
-
-    # Convert numeric columns from string to float
-    numeric_cols = ['open', 'high', 'low', 'close', 'vwap', 'volume']
+    numeric_cols = ['open','high','low','close','vwap','volume']
     df[numeric_cols] = df[numeric_cols].astype(float)
-
     return df
+
+def fetch_ohlcv_kraken_paginated(pair='XBTUSD', interval=5, since=None):
+    """
+    Fetch all OHLCV bars from `since` to now by paging through Kraken's limit.
+    Returns a single DataFrame (possibly empty).
+    """
+    all_batches = []
+    fetch_since = since
+
+    while True:
+        batch = fetch_ohlcv_kraken(pair=pair, interval=5, since=fetch_since)
+        if batch.empty:
+            break
+
+        all_batches.append(batch)
+
+        # advance to just after the last bar
+        last_ts = batch.index[-1]
+        fetch_since = int(last_ts.timestamp() * 1000) + interval * 60 * 1000
+
+        time.sleep(1)  # avoid hammering the API
+
+    if not all_batches:
+        return pd.DataFrame()  # no new data
+
+    df_all = pd.concat(all_batches)
+    # dedupe and sort just in case of overlap
+    df_all = df_all[~df_all.index.duplicated(keep='first')].sort_index()
+    return df_all
+
 
 def save_to_csv(df, filepath):
     """Save DataFrame to CSV."""

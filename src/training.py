@@ -16,7 +16,7 @@ from src.tuning import tune_xgboost_with_cv
 from src.modeling import train_xgboost
 from src.prioritise_features import get_top_shap_features
 from sklearn.metrics import mean_squared_error
-from src.tuning import run_tune
+
 
 
 
@@ -77,7 +77,7 @@ def run_training_pipeline(X, y, results_path):
     # Run SHAP explanation
     explainer = shap.Explainer(model)
     shap_values = explainer(X)
-    shap.summary_plot(shap_values, X, show=True)
+    shap.summary_plot(shap_values, X, show=False)
     
     top_features, shap_summary = get_top_shap_features(shap_values, X.columns, top_n=10)
     X_top = X[top_features]
