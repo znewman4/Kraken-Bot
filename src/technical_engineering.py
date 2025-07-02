@@ -28,7 +28,11 @@ def add_technical_indicators(df):
 
     # MACD
     macd = ta.macd(df['close'], fast=12, slow=26, signal=9)
+    for col in ['MACD_12_26_9', 'MACDh_12_26_9', 'MACDs_12_26_9']:
+        if col in df.columns:
+            df = df.drop(columns=col)
     df = df.join(macd)
+ 
 
     # Bollinger Bands
     bb = ta.bbands(df['close'], length=20, std=2)

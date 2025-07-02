@@ -1,83 +1,52 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 12 10:42:13 2025
-
-@author: zachnewman
-"""
-
 # src/data_loading.py
 
-import os
 import time
+from pathlib import Path
+
 import pandas as pd
-import krakenex
-from dotenv import load_dotenv
+import ccxt  # pip install ccxt
 
-load_dotenv()
+def append_new_ohlcv(pair: str,
+                     interval: int,
+                     file_path: Path) -> pd.DataFrame:
+    """
+    1) Load existing CSV of raw OHLCV.
+    2) Fetch up to 720 bars since the last timestamp + 1ms.
+    3) Append, dedupe, save, and return the updated DataFrame.
+    """
+    # ensure parent folder exists
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-def get_kraken_client():
-    """Initialize and return Kraken API client."""
-    k = krakenex.API()
-    k.key = os.getenv("KRAKEN_API_KEY")
-    k.secret = os.getenv("KRAKEN_API_SECRET")
-    return k
+    # prepare CCXT
+    symbol    = pair.replace("XBT", "BTC").replace("USD", "/USD")  # "BTC/USD"
+    timeframe = f"{interval}m"
+    limit     = 720
+    exchange  = ccxt.kraken({ "enableRateLimit": True })
 
-def fetch_ohlcv_kraken(pair='XBTUSD', interval=5, since=None):
+    # 1) load existing data
+    if file_path.exists():
+        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+        last_ms = int(df.index.max().timestamp() * 1000)
+        since   = last_ms + 1
+        print(f"🔎 Fetching bars since {df.index.max()} (+1 ms)")
+    else:
+        raise FileNotFoundError(f"No CSV at {file_path}; please seed with some data first")
 
-    k = get_kraken_client()
-    # Base params
-    params = {'pair': pair, 'interval': interval}
-    # Only include 'since' if provided (Kraken expects milliseconds)
-    if since is not None:
-        params['since'] = since
+    # 2) fetch one batch of new bars
+    batch = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+    if not batch:
+        print("ℹ️ No new bars returned.")
+        return df
 
-    response = k.query_public('OHLC', params)
-    if response.get('error'):
-        raise Exception(f"Kraken API error: {response['error']}")
+    # 3) turn into DataFrame
+    df_new = pd.DataFrame(batch, columns=["time","open","high","low","close","volume"])
+    df_new["time"] = pd.to_datetime(df_new["time"], unit="ms")
+    df_new.set_index("time", inplace=True)
 
-    key = list(response['result'].keys())[0]
-    ohlc = response['result'][key]
-    df = pd.DataFrame(
-        ohlc,
-        columns=['time','open','high','low','close','vwap','volume','count']
-    )
-    df['time'] = pd.to_datetime(df['time'], unit='s')
-    df.set_index('time', inplace=True)
-    numeric_cols = ['open','high','low','close','vwap','volume']
-    df[numeric_cols] = df[numeric_cols].astype(float)
+    # append, dedupe, save
+    df = pd.concat([df, df_new]).sort_index()
+    df = df[~df.index.duplicated(keep="first")]
+    df.to_csv(file_path)
+    print(f"💾 Appended {len(df_new)} rows up to {df_new.index[-1]} (total {len(df)} rows)")
+
     return df
-
-def fetch_ohlcv_kraken_paginated(pair='XBTUSD', interval=5, since=None):
-    """
-    Fetch all OHLCV bars from `since` to now by paging through Kraken's limit.
-    Returns a single DataFrame (possibly empty).
-    """
-    all_batches = []
-    fetch_since = since
-
-    while True:
-        batch = fetch_ohlcv_kraken(pair=pair, interval=5, since=fetch_since)
-        if batch.empty:
-            break
-
-        all_batches.append(batch)
-
-        # advance to just after the last bar
-        last_ts = batch.index[-1]
-        fetch_since = int(last_ts.timestamp() * 1000) + interval * 60 * 1000
-
-        time.sleep(1)  # avoid hammering the API
-
-    if not all_batches:
-        return pd.DataFrame()  # no new data
-
-    df_all = pd.concat(all_batches)
-    # dedupe and sort just in case of overlap
-    df_all = df_all[~df_all.index.duplicated(keep='first')].sort_index()
-    return df_all
-
-
-def save_to_csv(df, filepath):
-    """Save DataFrame to CSV."""
-    df.to_csv(filepath)
