@@ -2,6 +2,8 @@
 
 from pathlib import Path
 import pandas as pd
+import json
+import os
 
 from src.data_loading import append_new_ohlcv
 from src.data_cleaning      import clean_ohlcv, validate_ohlcv
@@ -53,7 +55,8 @@ def main():
     results_top, results_top_path = run_tuning(X_top, y)
     print("\n🏁 Retraining final model using top features and best params...")
     model_top_final, _, _, _ = run_training_pipeline(X_top, y, results_top_path)
-    model_top_final.save_model("final_xgb_model.json")
+    os.makedirs("models", exist_ok=True)
+    model_top_final.save_model("models/final_xgb_model.json")
     print("✅ Final model saved as final_xgb_model.json")
 
 if __name__ == "__main__":
