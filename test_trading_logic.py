@@ -21,7 +21,7 @@ def run_test(
     model_paths={1: 'models/xgb_h1.json', 5: 'models/xgb_h5.json', 10: 'models/xgb_h10.json'},
     fee_rate=0.002,
     vol_window=20,
-    max_position=1.0
+    max_position=2.0
 ):
     # 1) Load engineered data
     df = pd.read_csv(Path(csv_path), parse_dates=['time'], index_col='time')
@@ -53,7 +53,7 @@ def run_test(
 
     # 6) Normalize edge and apply dynamic threshold
     edge_norm = exp_return / volatility
-    threshold = (fee_rate / volatility).rename('threshold')
+    threshold = (fee_rate*0.5 / volatility).rename('threshold')
 
     # 7) Generate discrete signals
     signal = pd.Series(0, index=exp_return.index, name='signal')
