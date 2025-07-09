@@ -3,6 +3,12 @@
 import time
 from pathlib import Path
 
+import requests, certifi
+
+session = requests.Session()
+# Point at the freshly installed Certifi bundle
+session.verify = certifi.where()
+
 import pandas as pd
 import ccxt  # pip install ccxt
 
@@ -21,7 +27,11 @@ def append_new_ohlcv(pair: str,
     symbol    = pair.replace("XBT", "BTC").replace("USD", "/USD")  # "BTC/USD"
     timeframe = f"{interval}m"
     limit     = 720
-    exchange  = ccxt.kraken({ "enableRateLimit": True })
+    exchange  = ccxt.kraken({
+      "enableRateLimit": True,
+       "session": session, })
+    
+    exchange.session.verify = certifi.where()  # use certifi for SSL verification
 
     # 1) load existing data
     if file_path.exists():
