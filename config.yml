@@ -1,7 +1,6 @@
 data:
   raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
-  feature_data_path: "data/processed
-  cleaned_data_path:   "data/processed/btc_ohlcv_5min_cleaned.csv"
+  feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
 
 
 exchange:
