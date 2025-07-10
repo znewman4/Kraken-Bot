@@ -1,0 +1,48 @@
+# config.yml
+data:
+  raw_data_path: "data/raw/"
+  cleaned_data_path: "data/cleaned/"
+  feature_data_path: "data/features/"
+
+exchange:
+  exchange:
+  name: kraken
+  symbol: XBTUSD            # ← the market pair
+  interval_minute: 5        # ← the bar interval in minutes
+  api_key: "${KRAKEN_API_KEY}"
+  secret: "${KRAKEN_SECRET}"
+  timeout: 30
+
+
+backtest:
+  start_date: "2021-01-01"
+  end_date: "2021-12-31"
+  cash: 10000
+  commission: 0.0025
+
+features:
+  indicators:
+    - sma: { window: 20 }
+    - rsi: { window: 14 }
+
+model:
+  type: "xgboost"
+  hyperparameters:
+    n_estimators: 100
+    max_depth: 5
+    learning_rate: 0.1
+
+tuning:
+  method: "grid"
+  param_grid:
+    max_depth: [3,5,7]
+    learning_rate: [0.01, 0.1]
+
+training:
+  epochs: 50
+  batch_size: 32
+  validation_split: 0.2
+
+selection:
+  method: "shap"
+  top_k: 10
