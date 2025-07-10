@@ -1,5 +1,10 @@
 import os, yaml, json
 
+
+from dotenv import load_dotenv
+load_dotenv()
+
+
 # 1. sensible defaults
 DEFAULTS = {
     'data': {'raw_data_path': 'data/raw/', 'cleaned_data_path': 'data/cleaned/', 'feature_data_path': 'data/features/'},

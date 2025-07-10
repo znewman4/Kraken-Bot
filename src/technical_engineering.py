@@ -1,4 +1,4 @@
-# src/feature_engineering.py
+# src/technical_engineering.py
 
 import pandas as pd
 import pandas_ta as ta

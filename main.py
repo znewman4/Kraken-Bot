@@ -47,7 +47,7 @@ def main():
     proc_path     = Path(cfg['data']['feature_data_path'])
 
     # ─── Step 1: load raw OHLCV into `df` ───────────────────────────────────
-    df = append_new_ohlcv(pair, interval, raw_path)
+    df = append_new_ohlcv(pair, interval, raw_path, cfg['exchange'])
 
     # ─── Step 2: clean & validate ──────────────────────────────────────────
     validate_ohlcv(df)
@@ -69,19 +69,27 @@ def main():
     print("✅ Data ready—heres the head of `df`:\n", df.head())
 
     X, y = prepare_features_and_target(df, cfg['model'])
-    results, results_path = run_tuning(X, y, cfg['tuning'])
+    results, results_path = run_tuning(X, y, cfg['tuning'], cfg['model'])
     model, model_top, shap_values, top_features = run_training_pipeline(
-        X, y, results_path, cfg['training']
-    )
+    X,
+    y,
+    results_path,
+    cfg['training'],
+    cfg['model'],
+    cfg['selection']
+)
 
     # ─── Retune & retrain on top SHAP features ──────────────────────────────
     X_top = X[top_features]
     if cfg['selection']['method'] == 'shap':
         print("\n🔁 Retuning using only top SHAP features...")
-        results_top, results_top_path = run_tuning(X_top, y, cfg['tuning'])
+        results_top, results_top_path = run_tuning(X_top, y, cfg['tuning'], cfg['model'])
         print("\n🏁 Retraining final model using top features and best params...")
         model_top_final, _, _, _ = run_training_pipeline(
-            X_top, y, results_top_path, cfg['training']
+            X_top, y, results_top_path,
+            cfg['training'],
+            cfg['model'],
+            cfg['selection']
         )
         os.makedirs(cfg['model']['output_dir'], exist_ok=True)
         model_top_final.save_model(

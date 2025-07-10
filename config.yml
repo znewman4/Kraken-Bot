@@ -1,49 +1,58 @@
-# config.yml
 data:
-  raw_data_path: "data/raw/"
-  cleaned_data_path: "data/cleaned/"
-  feature_data_path: "data/features/"
+  raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
+  feature_data_path: "data/processed
+  cleaned_data_path:   "data/processed/btc_ohlcv_5min_cleaned.csv"
+
 
 exchange:
   name: kraken
-  symbol: XBTUSD            # ← the market pair
-  interval_minute: 5        # ← the bar interval in minutes
+  symbol: XBTUSD
+  interval_minute: 5
   api_key: "${KRAKEN_API_KEY}"
   secret: "${KRAKEN_SECRET}"
   timeout: 30
 
-
 backtest:
-  start_date: "2025-06-30"
-  end_date: "2025-07-09"
-  cash: 10000
+  start_date: "2021-01-01"
+  end_date:   "2021-12-31"
+  cash:       10000
   commission: 0.0025
 
 features:
   indicators:
-    - sma: { window: 20 }
-    - rsi: { window: 14 }
+    - sma: {window: 20}
+    - rsi: {window: 14}
+  drop_na: true
 
 model:
   type: "xgboost"
   hyperparameters:
     n_estimators: 100
-    max_depth: 5
+    max_depth:    5
     learning_rate: 0.1
   output_dir: "models"
-  filename: "final_xgb_model.json"
+  filename:   "final_xgb_model.json"
 
 tuning:
   method: "grid"
   param_grid:
-    max_depth: [3,5,7]
-    learning_rate: [0.01, 0.1]
+    max_depth:       [3,5,7]
+    learning_rate:   [0.01,0.1]
+  cv:              5
+  scoring:         null
+  n_iter:          10
+  random_state:    42
+  n_jobs:          -1
+  verbose:         0
+  results_dir:     "results"
+  results_filename: "tuning_results.json"
 
 training:
-  epochs: 50
-  batch_size: 32
+  fit_params:     {}
+  epochs:         50
+  batch_size:     32
   validation_split: 0.2
 
 selection:
   method: "shap"
-  top_k: 10
+  top_k:    10
