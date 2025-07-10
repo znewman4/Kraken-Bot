@@ -4,11 +4,12 @@ import numpy as np
 import xgboost as xgb
 from sklearn.metrics import roc_auc_score
 
-def prepare_features_and_target(df, horizon=1):
+def prepare_features_and_target(df, model_cfg):
     """
     Build feature matrix X and regression target y.
     y_t = (close_{t+horizon} - close_t)/close_t
     """
+    horizon = model_cfg.get("horizon", 1)
     df2 = df.copy()
     df2['target'] = (df2['close'].shift(-horizon) - df2['close']) / df2['close']
     df2.dropna(inplace=True)
@@ -33,7 +34,8 @@ def time_series_cv_split(X, y, n_splits=5, test_size=0.1):
             break
         yield np.arange(0, train_stop), np.arange(test_start, test_stop)
 
-def train_xgboost(X_train, y_train, params=None):
+def train_xgboost(X_train, y_train, model_cfg):
+
     """
     Trains XGBoost regressor on the training set with optional hyperparameters.
     """
