@@ -12,9 +12,10 @@ session.verify = certifi.where()
 import pandas as pd
 import ccxt  # pip install ccxt
 
-def append_new_ohlcv(pair: str,
-                     interval: int,
-                     file_path: Path) -> pd.DataFrame:
+def append_new_ohlcv(pair, 
+                     interval, 
+                     file_path,
+                     exchange_cfg) -> pd.DataFrame:
     """
     1) Load existing CSV of raw OHLCV.
     2) Fetch up to 720 bars since the last timestamp + 1ms.

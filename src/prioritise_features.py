@@ -9,7 +9,9 @@ Created on Sat Jun 21 18:16:52 2025
 import pandas as pd
 import numpy as np
 
-def get_top_shap_features(shap_values, feature_names, top_n=10):
+def get_top_shap_features(shap_values, feature_names, selection_cfg):
+    top_n = selection_cfg.get("top_k", 10)
+    
     """
     Get top N features based on mean absolute SHAP values.
 

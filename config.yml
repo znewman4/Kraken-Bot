@@ -5,7 +5,6 @@ data:
   feature_data_path: "data/features/"
 
 exchange:
-  exchange:
   name: kraken
   symbol: XBTUSD            # ← the market pair
   interval_minute: 5        # ← the bar interval in minutes
@@ -15,8 +14,8 @@ exchange:
 
 
 backtest:
-  start_date: "2021-01-01"
-  end_date: "2021-12-31"
+  start_date: "2025-06-30"
+  end_date: "2025-07-09"
   cash: 10000
   commission: 0.0025
 
@@ -31,6 +30,8 @@ model:
     n_estimators: 100
     max_depth: 5
     learning_rate: 0.1
+  output_dir: "models"
+  filename: "final_xgb_model.json"
 
 tuning:
   method: "grid"

@@ -6,7 +6,7 @@ import numpy as np
 
 
 
-def add_technical_indicators(df):
+def add_technical_indicators(df, features_cfg):
     """
     Add technical indicators to OHLCV DataFrame.
     Includes: EMA, RSI, MACD, Bollinger Bands
@@ -40,7 +40,7 @@ def add_technical_indicators(df):
 
     return df
 
-def add_return_features(df):
+def add_return_features(df, features_cfg):
     """
     Add lagged returns and rolling volatility features.
 
