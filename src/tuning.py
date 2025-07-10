@@ -1,49 +1,63 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 20 15:10:42 2025
+# src/tuning.py
 
-@author: zachnewman
-"""
-
-import numpy as np
-from sklearn.model_selection import ParameterGrid, ParameterSampler
-from sklearn.metrics import mean_squared_error
-import random
-from src.modeling import train_xgboost, time_series_cv_split
+import json
+from pathlib import Path
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
 
-def tune_xgboost_with_cv(X, y, param_grid, n_splits=5, test_size=0.1,
-                         max_iter=None, random_search=True, seed=42):
-    results = []
-    rng = random.Random(seed)
+def tune_model(estimator, X, y, tuning_cfg):
+    """
+    Run hyperparameter tuning using the specified method and parameter grid.
+    Returns the best parameters dict and path to saved results JSON.
+    """
+    method = tuning_cfg.get("method", "grid")
+    param_grid = tuning_cfg.get("param_grid", {})
+    cv = tuning_cfg.get("cv", 5)
+    scoring = tuning_cfg.get("scoring", None)
+    n_iter = tuning_cfg.get("n_iter", 10)
+    random_state = tuning_cfg.get("random_state", 42)
+    n_jobs = tuning_cfg.get("n_jobs", -1)
+    verbose = tuning_cfg.get("verbose", 0)
+    results_dir = tuning_cfg.get("results_dir", "results")
+    results_filename = tuning_cfg.get("results_filename", "tuning_results.json")
 
-    if random_search:
-        configs = list(ParameterSampler(param_grid, n_iter=max_iter or 10, random_state=seed))
+    # Choose search strategy
+    if method == "grid":
+        search = GridSearchCV(
+            estimator=estimator,
+            param_grid=param_grid,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
+    elif method == "random":
+        search = RandomizedSearchCV(
+            estimator=estimator,
+            param_distributions=param_grid,
+            n_iter=n_iter,
+            cv=cv,
+            scoring=scoring,
+            random_state=random_state,
+            n_jobs=n_jobs,
+            verbose=verbose
+        )
     else:
-        configs = list(ParameterGrid(param_grid))
-        if max_iter:
-            configs = configs[:max_iter]
+        raise ValueError(f"Unknown tuning method '{method}'. Use 'grid' or 'random'.")
 
-    for i, config in enumerate(configs):
-        print(f"🔁 Testing config {i+1}/{len(configs)}: {config}")
-        mses = []
+    # Run search
+    search.fit(X, y)
+    best_params = search.best_params_
+    cv_results = search.cv_results_
 
-        for fold, (train_idx, test_idx) in enumerate(time_series_cv_split(X, y, n_splits, test_size)):
-            X_train, y_train = X.iloc[train_idx], y.iloc[train_idx]
-            X_test, y_test = X.iloc[test_idx], y.iloc[test_idx]
+    # Save results
+    Path(results_dir).mkdir(parents=True, exist_ok=True)
+    results_path = Path(results_dir) / results_filename
+    with open(results_path, "w") as f:
+        json.dump({
+            "best_params": best_params,
+            "cv_results": cv_results
+        }, f, default=lambda obj: obj.tolist() if hasattr(obj, "tolist") else obj,
+        indent=2)
 
-            model = train_xgboost(X_train, y_train, params=config)
-            y_pred = model.predict(X_test)
-
-            mses.append(mean_squared_error(y_test, y_pred))
-
-        results.append({
-            "params": config,
-            "mean_mse": np.mean(mses),
-            "std_mse": np.std(mses)
-        })
-
-    results.sort(key=lambda r: r['mean_mse'], reverse=True)
-
-    return results
+    return best_params, str(results_path)
