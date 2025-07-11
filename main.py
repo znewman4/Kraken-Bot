@@ -62,7 +62,7 @@ def main():
 
     # ─── Step 4: persist engineered ────────────────────────────────────────
     proc_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(proc_path / f"{pair}_engineered.csv")
+    df.to_csv(proc_path)
     print(f"💾 Engineered data saved to {proc_path}")
 
     # ─── Step 5: modeling ───────────────────────────────────────────────────
@@ -70,7 +70,7 @@ def main():
 
     X, y = prepare_features_and_target(df, cfg['model'])
     results, results_path = run_tuning(X, y, cfg['tuning'], cfg['model'])
-    model, model_top, shap_values, top_features = run_training_pipeline(
+    model, shap_values, top_features = run_training_pipeline(
     X,
     y,
     results_path,
@@ -85,7 +85,7 @@ def main():
         print("\n🔁 Retuning using only top SHAP features...")
         results_top, results_top_path = run_tuning(X_top, y, cfg['tuning'], cfg['model'])
         print("\n🏁 Retraining final model using top features and best params...")
-        model_top_final, _, _, _ = run_training_pipeline(
+        model_top_final, shap_values_top, top_features_top = run_training_pipeline(
             X_top, y, results_top_path,
             cfg['training'],
             cfg['model'],
