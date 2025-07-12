@@ -33,3 +33,45 @@ time                                       ...
 
 [5 rows x 9 columns]
 2025-07-12 20:51:48,435 [__main__] INFO: 💰 Total PnL: $79.13
+2025-07-12 21:14:16,520 [__main__] INFO: Loaded config, starting up
+2025-07-12 21:14:16,653 [src.data_loading] INFO: Fetching bars since 2025-07-12 15:05:00 (+1ms)
+2025-07-12 21:14:23,868 [src.data_loading] INFO: Appended 4 rows up to 2025-07-12 15:25:00 (total 2690 rows)
+2025-07-12 21:14:24,306 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-12 21:14:48,495 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-12 21:14:55,125 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-12 21:14:56,501 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-12 21:14:56,609 [src.test_trading_logic] INFO: Loading model for 1-minute horizon from models/xgb_h1.json
+2025-07-12 21:14:56,765 [src.test_trading_logic] INFO: Loading model for 5-minute horizon from models/xgb_h5.json
+2025-07-12 21:14:56,931 [src.test_trading_logic] INFO: Loading model for 10-minute horizon from models/xgb_h10.json
+2025-07-12 21:14:57,150 [__main__] INFO: Trading logic output (last 5 rows):
+                        close  exp_return  ...  predicted_dollar_move       pnl
+time                                       ...                                 
+2025-07-12 15:05:00  117405.6   -0.001434  ...            -168.323777  0.069799
+2025-07-12 15:10:00  117437.2   -0.001677  ...            -196.961744  0.084655
+2025-07-12 15:15:00  117438.2   -0.001654  ...            -194.293575  0.102870
+2025-07-12 15:20:00  117360.4   -0.001156  ...            -135.669874  0.071641
+2025-07-12 15:25:00  117375.8         NaN  ...                    NaN       NaN
+
+[5 rows x 9 columns]
+2025-07-12 21:14:57,243 [__main__] INFO: 💰 Total PnL: $79.46
+2025-07-12 21:38:24,024 [__main__] INFO: Loaded config, starting up
+2025-07-12 21:38:24,146 [src.data_loading] INFO: Fetching bars since 2025-07-12 15:25:00 (+1ms)
+2025-07-12 21:38:28,785 [src.data_loading] INFO: Appended 5 rows up to 2025-07-12 15:50:00 (total 2695 rows)
+2025-07-12 21:38:29,067 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-12 21:38:52,935 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-12 21:38:57,084 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-12 21:38:58,508 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-12 21:38:58,579 [src.test_trading_logic] INFO: Loading model for 1-minute horizon from models/xgb_h1.json
+2025-07-12 21:38:58,690 [src.test_trading_logic] INFO: Loading model for 5-minute horizon from models/xgb_h5.json
+2025-07-12 21:38:58,808 [src.test_trading_logic] INFO: Loading model for 10-minute horizon from models/xgb_h10.json
+2025-07-12 21:38:58,956 [__main__] INFO: Trading logic output (last 5 rows):
+                        close  exp_return  ...  predicted_dollar_move       pnl
+time                                       ...                                 
+2025-07-12 15:30:00  117298.6   -0.001271  ...            -149.118763  0.068788
+2025-07-12 15:35:00  117126.1   -0.000894  ...            -104.749519  0.041742
+2025-07-12 15:40:00  117003.0    0.000024  ...               2.826131  0.000000
+2025-07-12 15:45:00  117007.1    0.000030  ...               3.532238  0.000000
+2025-07-12 15:50:00  117043.4         NaN  ...                    NaN       NaN
+
+[5 rows x 9 columns]
+2025-07-12 21:38:59,080 [__main__] INFO: 💰 Total PnL: $79.63

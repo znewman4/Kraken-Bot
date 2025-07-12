@@ -11,7 +11,7 @@ from src.data_cleaning         import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
 from src.modeling             import prepare_features_and_target
 from src.training             import run_tuning, run_training_pipeline
-from test_trading_logic        import run_test 
+from src.test_trading_logic        import run_test 
 
 
 def parse_args():
