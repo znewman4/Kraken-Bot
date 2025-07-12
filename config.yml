@@ -7,9 +7,12 @@ exchange:
   name: kraken
   symbol: XBTUSD
   interval_minute: 5
-  api_key: "${KRAKEN_API_KEY}"
-  secret: "${KRAKEN_SECRET}"
-  timeout: 30
+  api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
+  api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
+  timeout:    30
+  retries:    3       # how many times to retry on transient failures
+  retry_backoff: 5    # seconds between retry attempts
+
 
 backtest:
   start_date: "2021-01-01"
@@ -66,3 +69,16 @@ trading_logic:
   vol_window:     20
   max_position:   2.0
   btc_stake:      0.0009115
+
+logging:
+  level: INFO
+  format: '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+  handlers:
+    console:
+      enabled: true
+    file:
+      enabled: true
+      filename: 'logs/app.log'
+
+
+

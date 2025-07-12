@@ -1,11 +1,12 @@
-# src/trading_logic.py
-
+import logging
 import pandas as pd
 from pathlib import Path
 from xgboost import XGBRegressor
 from config_loader import load_config
 from src.modeling import prepare_features_and_target
 
+# Module-scoped logger
+logger = logging.getLogger(__name__)
 
 def run_test(cfg):
     """
@@ -34,6 +35,7 @@ def run_test(cfg):
     # 3) Load each horizon model and predict
     preds = pd.DataFrame(index=X.index)
     for horizon, model_file in tl_cfg['model_paths'].items():
+        logger.info("Loading model for %d-minute horizon from %s", horizon, model_file)
         model = XGBRegressor()
         model.load_model(str(model_file))
         preds[horizon] = model.predict(X)
@@ -82,5 +84,5 @@ def run_test(cfg):
 if __name__ == '__main__':
     cfg = load_config()
     trade_df = run_test(cfg)
-    print(trade_df.tail())
-    print(f"💰 Total PnL: ${trade_df['pnl'].sum():.2f}")
+    logger.info("Trade results:\n%s", trade_df.tail())
+    logger.info("💰 Total PnL: $%.2f", trade_df['pnl'].sum())

@@ -23,7 +23,7 @@ def merge_dicts(d, o):
 
 def _validate(cfg):
     required = [('exchange.api_key', "You must set exchange.api_key"),
-                ('exchange.secret',  "You must set exchange.secret"),
+                ('exchange.api_secret',  "You must set exchange.secret"),
                 ('model.type',       "You must set model.type")]
     for path, msg in required:
         parts = path.split('.')
