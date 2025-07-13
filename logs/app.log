@@ -423,3 +423,27 @@ time                                       ...
 2025-07-13 17:41:49,670 [__main__] INFO: Running backtest using KrakenStrategy...
 2025-07-13 17:44:42,164 [__main__] INFO: Final equity: $98.87
 2025-07-13 17:44:42,165 [__main__] INFO: Total PnL: $0.00
+2025-07-13 19:32:36,901 [__main__] INFO: Loaded config, starting up
+2025-07-13 19:32:36,967 [src.data_loading] INFO: Fetching bars since 2025-07-13 11:55:00 (+1ms)
+2025-07-13 19:32:39,539 [src.data_loading] INFO: Appended 22 rows up to 2025-07-13 13:45:00 (total 2958 rows)
+2025-07-13 19:32:39,772 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-13 19:32:52,944 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-13 19:32:55,472 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-13 19:32:55,872 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-13 19:32:55,925 [src.test_trading_logic] INFO: Loading model for 1-minute horizon from models/xgb_h1.json
+2025-07-13 19:32:55,997 [src.test_trading_logic] INFO: Loading model for 5-minute horizon from models/xgb_h5.json
+2025-07-13 19:32:56,083 [src.test_trading_logic] INFO: Loading model for 10-minute horizon from models/xgb_h10.json
+2025-07-13 19:32:56,184 [__main__] INFO: Trading logic output (last 5 rows):
+                        close  exp_return  ...  predicted_dollar_move        pnl
+time                                       ...                                  
+2025-07-13 13:25:00  118337.3   -0.001275  ...            -150.861837  40.391587
+2025-07-13 13:30:00  118516.7   -0.001295  ...            -153.512608  45.768865
+2025-07-13 13:35:00  118499.8   -0.000934  ...            -110.711350  31.946032
+2025-07-13 13:40:00  118642.4   -0.001136  ...            -134.739788  -0.000000
+2025-07-13 13:45:00  118754.7         NaN  ...                    NaN        NaN
+
+[5 rows x 9 columns]
+2025-07-13 19:32:56,238 [__main__] INFO: 💰 Total PnL: $124386.27
+2025-07-13 19:32:56,598 [__main__] INFO: Running backtest using KrakenStrategy...
+2025-07-13 19:33:21,379 [__main__] INFO: Final equity: $109053.86
+2025-07-13 19:33:21,382 [__main__] INFO: Total PnL: $369.88

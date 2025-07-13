@@ -101,11 +101,7 @@ def main():
         logger.info("Final model saved as %s/%s",
                     cfg['model']['output_dir'], cfg['model']['filename'])
 
-    # ─── Trading Logic ──────────────────────────────────────────────────────
-    # Now actually run your trading logic and log its output.
-    trade_df = run_test(cfg)
-    logger.info("Trading logic output (last 5 rows):\n%s", trade_df.tail())
-    logger.info("💰 Total PnL: $%.2f", trade_df['pnl'].sum())
+   
 
 if __name__ == "__main__":
     main()
