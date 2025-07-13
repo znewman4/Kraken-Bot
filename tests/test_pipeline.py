@@ -59,6 +59,8 @@ from src.data_cleaning import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
 from src.modeling import prepare_features_and_target, time_series_cv_split
 from src.test_trading_logic import run_test
+from src.backtesting.runner import run_backtest
+
 
 # -----------------------------------------------------------------------------
 # 1) Tests for data_cleaning.py
@@ -206,3 +208,18 @@ def test_run_test_end_to_end(tmp_path):
     }
     assert expected.issubset(result.columns)
     assert pd.api.types.is_numeric_dtype(result["pnl"])
+
+#Tests for backtesting pipeline
+
+
+def test_equity_survives():
+    metrics, cerebro = run_backtest("config.yml")
+    assert cerebro.broker.getvalue() > 0
+    assert metrics['pnl'].sum() > -1000  # adjust for expectations
+
+def test_no_excessive_drawdown():
+    metrics, cerebro = run_backtest("config.yml")
+    equity_curve = metrics['pnl'].cumsum()
+    drawdown = equity_curve.cummax() - equity_curve
+    assert drawdown.max() < 0.5 * cerebro.broker.getvalue()
+

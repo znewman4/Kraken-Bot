@@ -28,6 +28,7 @@ features:
 
 model:
   type: "xgboost"
+  features: "models/final_xgb_model_features.json"
   hyperparameters:
     n_estimators: 100
     max_depth:    5
@@ -68,7 +69,7 @@ trading_logic:
   fee_rate:       0.002
   vol_window:     20
   max_position:   2.0
-  btc_stake:      0.0009115
+  btc_stake:      1
 
 logging:
   level: INFO
