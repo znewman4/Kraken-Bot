@@ -447,3 +447,271 @@ time                                       ...
 2025-07-13 19:32:56,598 [__main__] INFO: Running backtest using KrakenStrategy...
 2025-07-13 19:33:21,379 [__main__] INFO: Final equity: $109053.86
 2025-07-13 19:33:21,382 [__main__] INFO: Total PnL: $369.88
+2025-07-14 16:36:14,882 [__main__] INFO: Loaded config, starting up
+2025-07-14 16:36:14,925 [src.data_loading] INFO: Fetching bars since 2025-07-13 13:45:00 (+1ms)
+2025-07-14 16:36:15,523 [src.data_loading] WARNING: fetch_ohlcv failed attempt 1/3: kraken GET https://api.kraken.com/0/public/Assets – retrying in 5s…
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 500, in wrap_socket
+    return self.sslsocket_class._create(
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1040, in _create
+    self.do_handshake()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1309, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 556, in fetch
+    response = self.session.request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1138, in fetch_ohlcv
+    self.load_markets()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 1551, in load_markets
+    currencies = self.fetch_currencies()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 761, in fetch_currencies
+    response = self.publicGetAssets(params)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/types.py", line 35, in unbound_method
+    return _self.request(self.path, self.api, self.method, params, config=self.config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4509, in request
+    return self.fetch2(path, api, method, params, headers, body, config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4503, in fetch2
+    raise e
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4494, in fetch2
+    return self.fetch(request['url'], request['method'], request['headers'], request['body'])
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 609, in fetch
+    raise NetworkError(details) from e
+ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
+2025-07-14 16:36:20,728 [src.data_loading] WARNING: fetch_ohlcv failed attempt 2/3: kraken GET https://api.kraken.com/0/public/Assets – retrying in 5s…
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 500, in wrap_socket
+    return self.sslsocket_class._create(
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1040, in _create
+    self.do_handshake()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1309, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 556, in fetch
+    response = self.session.request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1138, in fetch_ohlcv
+    self.load_markets()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 1551, in load_markets
+    currencies = self.fetch_currencies()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 761, in fetch_currencies
+    response = self.publicGetAssets(params)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/types.py", line 35, in unbound_method
+    return _self.request(self.path, self.api, self.method, params, config=self.config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4509, in request
+    return self.fetch2(path, api, method, params, headers, body, config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4503, in fetch2
+    raise e
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4494, in fetch2
+    return self.fetch(request['url'], request['method'], request['headers'], request['body'])
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 609, in fetch
+    raise NetworkError(details) from e
+ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
+2025-07-14 16:36:25,781 [src.data_loading] ERROR: All 3 attempts to fetch_ohlcv failed for BTC/USD/5m: kraken GET https://api.kraken.com/0/public/Assets
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 500, in wrap_socket
+    return self.sslsocket_class._create(
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1040, in _create
+    self.do_handshake()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/ssl.py", line 1309, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 667, in send
+    resp = conn.urlopen(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 556, in fetch
+    response = self.session.request(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/requests/adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.kraken.com', port=443): Max retries exceeded with url: /0/public/Assets (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1129)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1138, in fetch_ohlcv
+    self.load_markets()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 1551, in load_markets
+    currencies = self.fetch_currencies()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 761, in fetch_currencies
+    response = self.publicGetAssets(params)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/types.py", line 35, in unbound_method
+    return _self.request(self.path, self.api, self.method, params, config=self.config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4509, in request
+    return self.fetch2(path, api, method, params, headers, body, config)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4503, in fetch2
+    raise e
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 4494, in fetch2
+    return self.fetch(request['url'], request['method'], request['headers'], request['body'])
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 609, in fetch
+    raise NetworkError(details) from e
+ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
+2025-07-14 16:37:34,696 [__main__] INFO: Loaded config, starting up
+2025-07-14 16:37:34,751 [src.data_loading] INFO: Fetching bars since 2025-07-13 13:45:00 (+1ms)
+2025-07-14 16:37:37,769 [src.data_loading] INFO: Appended 253 rows up to 2025-07-14 10:50:00 (total 3211 rows)
+2025-07-14 16:37:37,968 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-14 16:37:50,448 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-14 16:37:54,308 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-14 16:37:55,181 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-14 16:37:55,672 [__main__] INFO: Running backtest using KrakenStrategy...
+2025-07-14 16:38:11,713 [__main__] INFO: Final equity: $108353.91
+2025-07-14 16:38:11,715 [__main__] INFO: Total PnL: $528.50
+2025-07-14 16:55:25,234 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-14 16:55:25,302 [src.data_loading] INFO: Fetching bars since 2025-07-14 10:50:00 (+1ms)
+2025-07-14 16:55:28,014 [src.data_loading] INFO: Appended 4 rows up to 2025-07-14 11:10:00 (total 3215 rows)
+2025-07-14 16:55:28,199 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-14 16:55:39,232 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-14 16:55:41,585 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-14 16:55:41,924 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-14 16:56:05,213 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-14 16:56:05,243 [src.data_loading] INFO: Fetching bars since 2025-07-14 11:10:00 (+1ms)
+2025-07-14 16:56:08,326 [src.data_loading] INFO: No new bars returned.
+2025-07-14 16:56:08,497 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-14 16:56:22,165 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-14 16:56:25,101 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-14 16:56:25,784 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-14 16:56:36,920 [__main__] INFO: Loaded config, starting in backtest mode
+2025-07-14 16:56:36,920 [__main__] INFO: Running backtest using KrakenStrategy…
+2025-07-14 16:56:46,262 [__main__] INFO: Loaded config, starting in backtest mode
+2025-07-14 16:56:46,262 [__main__] INFO: Running backtest using KrakenStrategy…
+2025-07-14 17:24:31,226 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-14 17:24:31,328 [src.data_loading] INFO: Fetching bars since 2025-07-14 11:10:00 (+1ms)
+2025-07-14 17:24:34,341 [src.data_loading] INFO: Appended 5 rows up to 2025-07-14 11:35:00 (total 3220 rows)
+2025-07-14 17:24:34,508 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-14 17:24:44,161 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-14 17:24:47,151 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-14 17:24:47,542 [__main__] INFO: Final model saved as models/final_xgb_model.json

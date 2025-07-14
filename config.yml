@@ -3,6 +3,13 @@ data:
   feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
 
 
+tracking:
+  # a human-readable bucket for grouping runs
+  experiment_name: "kraken_xbt_usd"
+  run_name: "run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+
+
 exchange:
   name: kraken
   symbol: XBTUSD
@@ -74,7 +81,7 @@ trading_logic:
   max_position:   2.0
   btc_stake:      1
   stop_loss_atr_mult: 1.5
-  take_profit_atr_mult: 2.0
+  take_profit_atr_mult: 2.5
 
 logging:
   level: INFO
