@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/85c32810ce9748e29423327a328aee86/artifacts
+end_time: 1752505703910
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 85c32810ce9748e29423327a328aee86
+run_name: gentle-fish-299
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752505635531
+status: 3
+tags: []
+user_id: zachnewman

@@ -1,0 +1,10 @@
+artifact_location: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/models/m-71b9b6c04fd4433eb8b5a411ef978693/artifacts
+creation_timestamp: 1752505690386
+experiment_id: '519561172500518499'
+last_updated_timestamp: 1752505697221
+model_id: m-71b9b6c04fd4433eb8b5a411ef978693
+model_type: null
+name: model
+source_run_id: ac7380fb5ab14584aa8c7c12ecd19a34
+status: 2
+status_message: null

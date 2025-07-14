@@ -1,0 +1,9 @@
+digest: 422459bd
+name: dataset
+profile: '{"features_shape": [3230, 21], "features_size": 67830, "features_nbytes":
+  271320}'
+schema: '{"mlflow_tensorspec": {"features": "[{\"type\": \"tensor\", \"tensor-spec\":
+  {\"dtype\": \"float32\", \"shape\": [-1, 21]}}]", "targets": null}}'
+source: '{"tags": {"mlflow.user": "zachnewman", "mlflow.source.name": "/Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py",
+  "mlflow.source.type": "LOCAL", "mlflow.source.git.commit": "9bb3ab6ec07e830b1b25e2aa6bb2fef345ac58f8"}}'
+source_type: code

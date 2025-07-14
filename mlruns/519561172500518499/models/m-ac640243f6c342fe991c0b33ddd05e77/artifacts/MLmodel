@@ -1,0 +1,35 @@
+artifact_path: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/models/m-ac640243f6c342fe991c0b33ddd05e77/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.9.6
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.6.1
+is_signature_from_type_hint: false
+mlflow_version: 3.1.1
+model_id: m-ac640243f6c342fe991c0b33ddd05e77
+model_size_bytes: 120232
+model_uuid: m-ac640243f6c342fe991c0b33ddd05e77
+prompts: null
+run_id: 255a5020833f4fe59b4570dc637fe938
+signature:
+  inputs: '[{"type": "double", "name": "volatility_5", "required": true}, {"type":
+    "double", "name": "BBP_20_2.0", "required": true}, {"type": "double", "name":
+    "rsi_14", "required": true}, {"type": "double", "name": "BBB_20_2.0", "required":
+    true}, {"type": "double", "name": "volume", "required": true}, {"type": "double",
+    "name": "log_return_5", "required": true}, {"type": "double", "name": "MACD_12_26_9",
+    "required": true}, {"type": "double", "name": "MACDh_12_26_9", "required": true},
+    {"type": "double", "name": "MACDs_12_26_9", "required": true}, {"type": "double",
+    "name": "log_return", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "float32", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2025-07-14 15:17:12.440174'

@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/976f7f55c02043d7bc757ee1181e46e8/artifacts
+end_time: 1752506239825
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 976f7f55c02043d7bc757ee1181e46e8
+run_name: charming-wolf-60
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752506183093
+status: 3
+tags: []
+user_id: zachnewman

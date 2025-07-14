@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/057608ac42bd474e974a6ef3fbda0ff1/artifacts
+end_time: 1752506211277
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 057608ac42bd474e974a6ef3fbda0ff1
+run_name: salty-dove-623
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752506183093
+status: 3
+tags: []
+user_id: zachnewman

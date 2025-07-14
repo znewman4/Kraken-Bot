@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/7db8360266cb48f5b20f638f024b6421/artifacts
+end_time: 1752506239825
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 7db8360266cb48f5b20f638f024b6421
+run_name: whimsical-doe-873
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752506183093
+status: 3
+tags: []
+user_id: zachnewman

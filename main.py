@@ -1,6 +1,10 @@
 import os
 import argparse
 import logging
+import mlflow
+mlflow.autolog()
+
+
 from pathlib import Path
 
 import pandas as pd
@@ -44,6 +48,9 @@ def setup_logging(log_cfg):
 def main():
     args = parse_args()
     cfg  = load_config(args.config, overrides=args.set)
+
+    mlflow.set_experiment(cfg['tracking']['experiment_name'])
+    mlflow.start_run(run_name=cfg['tracking']['run_name'])
 
     setup_logging(cfg['logging'])
     logger = logging.getLogger(__name__)

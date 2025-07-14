@@ -1,0 +1,21 @@
+digest: 7d50948a
+name: dataset
+profile: '{"num_rows": 3230, "num_elements": 67830}'
+schema: '{"mlflow_colspec": [{"type": "double", "name": "open", "required": true},
+  {"type": "double", "name": "high", "required": true}, {"type": "double", "name":
+  "low", "required": true}, {"type": "double", "name": "vwap", "required": true},
+  {"type": "double", "name": "volume", "required": true}, {"type": "double", "name":
+  "count", "required": true}, {"type": "double", "name": "ema_10", "required": true},
+  {"type": "double", "name": "sma_10", "required": true}, {"type": "double", "name":
+  "rsi_14", "required": true}, {"type": "double", "name": "MACD_12_26_9", "required":
+  true}, {"type": "double", "name": "MACDh_12_26_9", "required": true}, {"type": "double",
+  "name": "MACDs_12_26_9", "required": true}, {"type": "double", "name": "BBL_20_2.0",
+  "required": true}, {"type": "double", "name": "BBM_20_2.0", "required": true}, {"type":
+  "double", "name": "BBU_20_2.0", "required": true}, {"type": "double", "name": "BBB_20_2.0",
+  "required": true}, {"type": "double", "name": "BBP_20_2.0", "required": true}, {"type":
+  "double", "name": "log_return", "required": true}, {"type": "double", "name": "log_return_1",
+  "required": true}, {"type": "double", "name": "log_return_5", "required": true},
+  {"type": "double", "name": "volatility_5", "required": true}]}'
+source: '{"tags": {"mlflow.user": "zachnewman", "mlflow.source.name": "/Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py",
+  "mlflow.source.type": "LOCAL", "mlflow.source.git.commit": "9bb3ab6ec07e830b1b25e2aa6bb2fef345ac58f8"}}'
+source_type: code

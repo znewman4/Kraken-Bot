@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/3b19f62963ee47b6a3af0dbb5b5f1b64/artifacts
+end_time: 1752505703910
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 3b19f62963ee47b6a3af0dbb5b5f1b64
+run_name: ambitious-quail-517
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752505635531
+status: 3
+tags: []
+user_id: zachnewman

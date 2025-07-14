@@ -1,0 +1,10 @@
+artifact_location: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/models/m-42e261c9db804987bff62f768dbefa6a/artifacts
+creation_timestamp: 1752505664519
+experiment_id: '519561172500518499'
+last_updated_timestamp: 1752505673237
+model_id: m-42e261c9db804987bff62f768dbefa6a
+model_type: null
+name: best_estimator
+source_run_id: ac7380fb5ab14584aa8c7c12ecd19a34
+status: 2
+status_message: null

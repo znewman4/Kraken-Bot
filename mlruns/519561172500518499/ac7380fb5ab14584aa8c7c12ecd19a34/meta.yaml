@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/ac7380fb5ab14584aa8c7c12ecd19a34/artifacts
+end_time: 1752505721917
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: ac7380fb5ab14584aa8c7c12ecd19a34
+run_name: run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752505635531
+status: 3
+tags: []
+user_id: zachnewman
