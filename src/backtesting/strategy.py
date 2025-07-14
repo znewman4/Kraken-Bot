@@ -5,7 +5,6 @@ import xgboost as xgb
 import json
 from collections import deque
 
-
 class KrakenStrategy(bt.Strategy):
     params = (
         ('config', None),
@@ -29,15 +28,15 @@ class KrakenStrategy(bt.Strategy):
             self.feature_names = json.load(f)
 
         # Metrics tracking
-        self.exp_returns = []
-        self.vol_window = self.tl_cfg['vol_window']
-        self.edge_norms = []
-        self.thresholds = []
-        self.signals = []
-        self.positions_log = []
-        self.pnls = []
-        self.closes = []
-        self.ret_buffer = []
+        self.exp_returns    = []
+        self.vol_window     = self.tl_cfg['vol_window']
+        self.edge_norms     = []
+        self.thresholds     = []
+        self.signals        = []
+        self.positions_log  = []
+        self.pnls           = []
+        self.closes         = []
+        self.ret_buffer     = []
 
         # Signal persistence buffer
         self.signal_buffer = deque(maxlen=self.tl_cfg.get('persistence', 3))
@@ -65,9 +64,7 @@ class KrakenStrategy(bt.Strategy):
             self.log(f"{action} EXECUTED: Price={price}, Size={size}")
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            # For these, executed.price is 0 or unavailable, so just show the status
             self.log(f"⚠️ Order {status_name}")
-
 
     def next(self):
         # Time-of-day filter
@@ -83,7 +80,7 @@ class KrakenStrategy(bt.Strategy):
 
         # Build feature row and predict
         row = {name: getattr(self.datas[0], name)[0] for name in self.feature_names}
-        df = pd.DataFrame([row])
+        df  = pd.DataFrame([row])
         preds = [model.predict(df)[0] for model in self.models.values()]
         exp_return = np.mean(preds)
         self.exp_returns.append(exp_return)
@@ -93,7 +90,8 @@ class KrakenStrategy(bt.Strategy):
             ret = (self.data.close[0] - self.closes[-1]) / self.closes[-1]
             self.ret_buffer.append(ret)
         self.closes.append(self.data.close[0])
-        volatility = pd.Series(self.ret_buffer[-self.vol_window:]).std() if len(self.ret_buffer) >= self.vol_window else np.nan
+        volatility = pd.Series(self.ret_buffer[-self.vol_window:]).std() \
+            if len(self.ret_buffer) >= self.vol_window else np.nan
 
         # Normalize edge & threshold
         if volatility and volatility > 0:
@@ -108,21 +106,21 @@ class KrakenStrategy(bt.Strategy):
         self.signal_buffer.append(signal)
 
         # Compute scaled position factor
-        confidence = abs(edge_norm)
-        max_conf = max(self.edge_norms) if self.edge_norms else 1e-8
-        scaled_conf = confidence / max(max_conf, 1e-8)
+        confidence     = abs(edge_norm)
+        max_conf       = max(self.edge_norms) if self.edge_norms else 1e-8
+        scaled_conf    = confidence / max(max_conf, 1e-8)
         scaled_position = scaled_conf * self.tl_cfg['max_position'] * signal
 
         # Entry with ATR bracket orders
         if all(s == 1 for s in self.signal_buffer) and not self.position:
-            size = (self.broker.getcash() * abs(scaled_position)) / self.data.close[0]
+            size      = (self.broker.getcash() * abs(scaled_position)) / self.data.close[0]
             stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
             tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
             self.buy_bracket(
                 size=size,
                 price=self.data.close[0],
                 stopprice=self.data.close[0] - stop_mult * self.atr[0],
-                limitprice=self.data.close[0] + tp_mult * self.atr[0]
+                limitprice=self.data.close[0] + tp_mult   * self.atr[0]
             )
 
         # Track metrics and log
@@ -138,11 +136,11 @@ class KrakenStrategy(bt.Strategy):
 
     def get_metrics(self):
         return pd.DataFrame({
-            'close':       self.closes,
-            'exp_return':  self.exp_returns,
-            'edge_norm':   self.edge_norms,
-            'threshold':   self.thresholds,
-            'signal':      self.signals,
-            'position':    self.positions_log,
-            'pnl':         self.pnls
+            'close':      self.closes,
+            'exp_return': self.exp_returns,
+            'edge_norm':  self.edge_norms,
+            'threshold':  self.thresholds,
+            'signal':     self.signals,
+            'position':   self.positions_log,
+            'pnl':        self.pnls
         })

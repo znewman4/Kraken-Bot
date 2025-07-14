@@ -1,5 +1,3 @@
-#main.py
-
 import os
 import argparse
 import logging
@@ -16,29 +14,16 @@ from src.training             import run_tuning, run_training_pipeline
 from src.test_trading_logic   import run_test
 from src.backtesting.runner   import run_backtest
 
-
 def parse_args():
     p = argparse.ArgumentParser("Run Kraken trading bot")
-    p.add_argument(
-        '--config',
-        type=str,
-        default='config.yml',
-        help='Path to your config file (YAML or JSON)'
-    )
-    p.add_argument(
-        '--set',
-        action='append',
-        default=[],
-        help='Override a config entry, e.g. --set backtest.start_date=2022-01-01'
-    )
-    p.add_argument(
-        '--mode',
-        choices=['pipeline', 'backtest'],
-        default='pipeline',
-        help="pipeline = data+train; backtest = run KrakenStrategy"
-    )
+    p.add_argument('--config', type=str, default='config.yml',
+                   help='Path to your config file')
+    p.add_argument('--set', action='append', default=[],
+                   help='Override a config entry')
+    p.add_argument('--mode', choices=['pipeline','backtest'],
+                   default='pipeline',
+                   help="pipeline = data+train; backtest = run KrakenStrategy")
     return p.parse_args()
-
 
 def setup_logging(log_cfg):
     handlers = []
@@ -48,14 +33,13 @@ def setup_logging(log_cfg):
         ch.setFormatter(logging.Formatter(log_cfg['format']))
         handlers.append(ch)
     if log_cfg['handlers']['file']['enabled']:
-        log_path = Path(log_cfg['handlers']['file']['filename'])
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(log_path)
+        fp = Path(log_cfg['handlers']['file']['filename'])
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(fp)
         fh.setLevel(log_cfg['level'])
         fh.setFormatter(logging.Formatter(log_cfg['format']))
         handlers.append(fh)
     logging.basicConfig(level=log_cfg['level'], handlers=handlers)
-
 
 def main():
     args = parse_args()
@@ -66,7 +50,7 @@ def main():
     logger.info("Loaded config, starting in %s mode", args.mode)
 
     if args.mode == 'pipeline':
-        # ─── Data Pipeline ────────────────────────────────────────────────
+        # ─── Data + Train Pipeline ────────────────────────────────────────
         pair      = cfg['exchange']['symbol']
         interval  = cfg['exchange']['interval_minute']
         raw_path  = Path(cfg['data']['raw_data_path'])
@@ -86,42 +70,35 @@ def main():
         df.to_csv(proc_path)
         logger.info("Engineered data saved to %s", proc_path)
 
-        # ─── Feature Prep & Model Tuning ─────────────────────────────────
         X, y = prepare_features_and_target(df, cfg['model'])
         results, results_path = run_tuning(X, y, cfg['tuning'], cfg['model'])
         model, shap_values, top_features = run_training_pipeline(
-            X, y, results_path, cfg['training'], cfg['model'], cfg['selection']
+            X, y, results_path,
+            cfg['training'], cfg['model'], cfg['selection']
         )
 
-        # ─── SHAP-based Feature Selection & Final Training ────────────────
         if cfg['selection']['method'] == 'shap':
             logger.info("Retuning using only top SHAP features...")
             X_top = X[top_features]
-
             results_top, results_top_path = run_tuning(
                 X_top, y, cfg['tuning'], cfg['model']
             )
-            logger.info("Retraining final model using top features and best params...")
+            logger.info("Retraining final model with top features...")
             model_top_final, _, _ = run_training_pipeline(
                 X_top, y, results_top_path,
                 cfg['training'], cfg['model'], cfg['selection']
             )
-
             os.makedirs(cfg['model']['output_dir'], exist_ok=True)
-            final_model_path = os.path.join(
-                cfg['model']['output_dir'],
-                cfg['model']['filename']
-            )
-            model_top_final.save_model(final_model_path)
-            logger.info("Final model saved as %s", final_model_path)
+            path = os.path.join(cfg['model']['output_dir'], cfg['model']['filename'])
+            model_top_final.save_model(path)
+            logger.info("Final model saved as %s", path)
 
     else:  # backtest
-        # ─── Backtest with KrakenStrategy ─────────────────────────────────
         logger.info("Running backtest using KrakenStrategy…")
-        metrics, cerebro = run_backtest(args.config)
+        # pass the dict, not the string
+        metrics, cerebro = run_backtest(cfg)
         logger.info("Final account value: $%.2f", cerebro.broker.getvalue())
         logger.info("Total PnL:           $%.2f", metrics['pnl'].sum())
-
 
 if __name__ == "__main__":
     main()
