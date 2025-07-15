@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/66941b68c8d34c6bac8c72348c51f264/artifacts
+end_time: 1752567199138
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: 66941b68c8d34c6bac8c72348c51f264
+run_name: luxuriant-moth-862
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752567157610
+status: 3
+tags: []
+user_id: zachnewman

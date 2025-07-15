@@ -1,0 +1,18 @@
+{"time":"2025-07-15T14:59:33.640226+05:45","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-15T14:59:33.685306+05:45","level":"ERROR","msg":"monitor: failed to initialize GPU resource: monitor: could not start GPU binary: fork/exec /Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/wandb/bin/gpu_stats: bad CPU type in executable"}
+{"time":"2025-07-15T14:59:34.365293+05:45","level":"INFO","msg":"stream: created new stream","id":"whflybj0"}
+{"time":"2025-07-15T14:59:34.365373+05:45","level":"INFO","msg":"stream: started","id":"whflybj0"}
+{"time":"2025-07-15T14:59:34.365529+05:45","level":"INFO","msg":"handler: started","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:34.366068+05:45","level":"INFO","msg":"sender: started","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:34.366091+05:45","level":"INFO","msg":"writer: Do: started","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:34.668021+05:45","level":"ERROR","msg":"HTTP error","status":403,"method":"POST","url":"https://api.wandb.ai/graphql"}
+{"time":"2025-07-15T14:59:34.669185+05:45","level":"ERROR","msg":"runupserter: failed to init run","error":"returned error 403: {\"data\":{\"upsertBucket\":null},\"errors\":[{\"message\":\"permission denied\",\"path\":[\"upsertBucket\"],\"extensions\":{\"code\":\"PERMISSION_ERROR\"}}]}"}
+{"time":"2025-07-15T14:59:35.674749+05:45","level":"INFO","msg":"stream: closing","id":"whflybj0"}
+{"time":"2025-07-15T14:59:35.6768+05:45","level":"ERROR","msg":"sender: uploadConfigFile: stream: no run"}
+{"time":"2025-07-15T14:59:36.026652+05:45","level":"ERROR","msg":"HTTP error","status":404,"method":"POST","url":"https://api.wandb.ai/graphql"}
+{"time":"2025-07-15T14:59:36.026947+05:45","level":"ERROR","msg":"runfiles: CreateRunFiles returned error: returned error 404: {\"data\":{\"createRunFiles\":null},\"errors\":[{\"message\":\"project zachnewman04/kraken-bot not found during createRunFiles\",\"path\":[\"createRunFiles\"]}]}"}
+{"time":"2025-07-15T14:59:36.030329+05:45","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-15T14:59:36.030622+05:45","level":"INFO","msg":"handler: closed","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:36.030651+05:45","level":"INFO","msg":"writer: Close: closed","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:36.030673+05:45","level":"INFO","msg":"sender: closed","stream_id":"whflybj0"}
+{"time":"2025-07-15T14:59:36.031049+05:45","level":"INFO","msg":"stream: closed","id":"whflybj0"}

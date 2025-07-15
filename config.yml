@@ -7,6 +7,10 @@ tracking:
   # a human-readable bucket for grouping runs
   experiment_name: "kraken_xbt_usd"
   run_name: "run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+  wandb:
+    project: cfg['tracking']['wandb']['project'],
+    config: cfg
+
 
 
 

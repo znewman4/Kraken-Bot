@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/d917eaacf9704210a2dd258899e9aa68/artifacts
+end_time: 1752567199138
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: d917eaacf9704210a2dd258899e9aa68
+run_name: monumental-deer-205
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752567157610
+status: 3
+tags: []
+user_id: zachnewman

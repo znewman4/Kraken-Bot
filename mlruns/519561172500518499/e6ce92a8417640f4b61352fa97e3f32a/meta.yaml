@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/zachnewman/Kraken-Bot/Kraken-Bot/mlruns/519561172500518499/e6ce92a8417640f4b61352fa97e3f32a/artifacts
+end_time: 1752567250579
+entry_point_name: ''
+experiment_id: '519561172500518499'
+lifecycle_stage: active
+run_id: e6ce92a8417640f4b61352fa97e3f32a
+run_name: capricious-moose-180
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1752567157610
+status: 3
+tags: []
+user_id: zachnewman

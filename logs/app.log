@@ -736,3 +736,28 @@ ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
 2025-07-14 21:02:01,713 [__main__] INFO: Retuning using only top SHAP features...
 2025-07-14 21:02:20,453 [__main__] INFO: Retraining final model with top features...
 2025-07-14 21:02:32,701 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-15 13:57:37,638 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 13:57:37,741 [src.data_loading] INFO: Fetching bars since 2025-07-14 15:15:00 (+1ms)
+2025-07-15 13:57:40,429 [src.data_loading] INFO: Appended 203 rows up to 2025-07-15 08:10:00 (total 3467 rows)
+2025-07-15 13:57:40,707 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-15 13:58:34,794 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-15 13:59:11,988 [__main__] INFO: Retraining final model with top features...
+2025-07-15 13:59:24,509 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-15 14:18:03,637 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 14:18:03,767 [src.data_loading] INFO: Fetching bars since 2025-07-15 08:10:00 (+1ms)
+2025-07-15 14:18:07,020 [src.data_loading] INFO: Appended 4 rows up to 2025-07-15 08:30:00 (total 3471 rows)
+2025-07-15 14:18:07,245 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-15 14:18:26,348 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-15 14:18:31,387 [__main__] INFO: Retraining final model with top features...
+2025-07-15 14:18:31,997 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-15 14:25:06,937 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 14:25:07,122 [src.data_loading] INFO: Fetching bars since 2025-07-15 08:30:00 (+1ms)
+2025-07-15 14:25:10,392 [src.data_loading] INFO: Appended 2 rows up to 2025-07-15 08:40:00 (total 3473 rows)
+2025-07-15 14:25:10,697 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-15 14:25:39,249 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-15 14:25:45,240 [__main__] INFO: Retraining final model with top features...
+2025-07-15 14:25:46,638 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-15 14:44:46,565 [__main__] INFO: Loaded config, starting in backtest mode
+2025-07-15 14:52:09,863 [__main__] INFO: Loaded config, starting in backtest mode
+2025-07-15 14:57:13,677 [__main__] INFO: Loaded config, starting in backtest mode
+2025-07-15 14:59:31,642 [__main__] INFO: Loaded config, starting in pipeline mode
