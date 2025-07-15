@@ -76,7 +76,7 @@ def main():
         # save features
         proc_path = Path(cfg['data']['feature_data_path'])
         proc_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(proc_path, index=False)
+        df.to_csv(proc_path, index=True)
         logger.info("Engineered data saved to %s", proc_path)
 
         X, y = prepare_features_and_target(df, cfg['model'])

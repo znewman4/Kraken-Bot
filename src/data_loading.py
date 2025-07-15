@@ -92,6 +92,7 @@ def append_new_ohlcv(pair: str,
 
     df = pd.concat([df, df_new]).sort_index()
     df = df[~df.index.duplicated(keep="first")]
+    df.index.name = "time"
     df.to_csv(file_path)
 
     # — this is now valid syntax —
