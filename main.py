@@ -14,8 +14,7 @@ from src.technical_engineering import add_technical_indicators, add_return_featu
 from src.modeling              import prepare_features_and_target
 from src.training              import run_tuning, run_training_pipeline
 from src.backtesting.runner    import run_backtest
-# if your run_kraken_strategy script exposes a Python entrypoint, import it
-# from run_kraken_strategy      import main as run_kraken_strategy22
+
 
 def parse_args():
     p = argparse.ArgumentParser("Run Kraken trading bot")
@@ -88,13 +87,12 @@ def main():
         )
 
         # Compute & log metrics
-        equity, trades = run_backtest(cfg)[:2]  # adapt if your API differs
+        metrics_df, cerebro = run_backtest(cfg)
+        trades = metrics_df               # if metrics_df has one row per trade; otherwise rename appropriately
+        equity = metrics_df["pnl"].cumsum()  # cumulative PnL → equity curve
+
         metrics = {
             "total_pnl":       equity.iloc[-1] - equity.iloc[0],
-            "sharpe":          compute_sharpe(equity),
-            "max_drawdown":    compute_max_drawdown(equity),
-            "win_rate":        compute_win_rate(trades),
-            "num_trades":      len(trades),
         }
         # PnL distribution stats
         stats = trades["pnl"].describe().to_dict()

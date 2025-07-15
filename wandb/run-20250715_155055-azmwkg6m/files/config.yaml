@@ -1,0 +1,140 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            qx4x7652xbn9g2u6jsxi57bh1j0sci7p:
+                codePath: main.py
+                codePathLocal: main.py
+                cpu_count: 4
+                cpu_count_logical: 8
+                disk:
+                    /:
+                        total: "250685575168"
+                        used: "195518046208"
+                email: zachnewman04@gmail.com
+                executable: /Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/bin/python
+                git:
+                    commit: 6a3612b6dd58c6f409480b10ce88fa55516df96d
+                    remote: https://github.com/znewman4/Kraken-Bot.git
+                host: Zachs-MacBook-Air.local
+                memory:
+                    total: "8589934592"
+                os: macOS-15.4.1-x86_64-i386-64bit
+                program: /Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py
+                python: CPython 3.9.6
+                root: /Users/zachnewman/Kraken-Bot/Kraken-Bot
+                startedAt: "2025-07-15T10:05:55.423729Z"
+                writerId: qx4x7652xbn9g2u6jsxi57bh1j0sci7p
+        m: []
+        python_version: 3.9.6
+        t:
+            "1":
+                - 5
+                - 6
+                - 53
+            "2":
+                - 5
+                - 6
+                - 53
+            "3":
+                - 16
+            "4": 3.9.6
+            "5": 0.21.0
+            "12": 0.21.0
+            "13": darwin-x86_64
+backtest:
+    value:
+        cash: 10000
+        commission: 0.0025
+        end_date: "2021-12-31"
+        max_bars: 500
+        slippage_perc: 0.0002
+        start_date: "2021-01-01"
+data:
+    value:
+        cleaned_data_path: data/cleaned/
+        feature_data_path: data/processed/btc_ohlcv_5min_engineered.csv
+        raw_data_path: data/raw/btc_ohlcv_5min_raw.csv
+exchange:
+    value:
+        api_key: d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM
+        api_secret: +XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw==
+        interval_minute: 5
+        name: kraken
+        retries: 3
+        retry_backoff: 5
+        symbol: XBTUSD
+        timeout: 30
+features:
+    value:
+        drop_na: true
+        indicators:
+            - sma:
+                window: 20
+            - rsi:
+                window: 14
+logging:
+    value:
+        format: '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+        handlers:
+            console:
+                enabled: true
+            file:
+                enabled: true
+                filename: logs/app.log
+        level: INFO
+model:
+    value:
+        features: models/final_xgb_model_features.json
+        filename: final_xgb_model.json
+        hyperparameters:
+            learning_rate: 0.1
+            max_depth: 5
+            n_estimators: 100
+        output_dir: models
+        type: xgboost
+selection:
+    value:
+        method: shap
+        top_k: 10
+tracking:
+    value:
+        wandb:
+            config: cfg
+            project: cfg['tracking']['wandb']['project'],
+trading_logic:
+    value:
+        btc_stake: 1
+        fee_rate: 0.002
+        max_position: 2
+        model_paths:
+            "1": models/xgb_h1.json
+            "5": models/xgb_h5.json
+            "10": models/xgb_h10.json
+        stop_loss_atr_mult: 1.5
+        take_profit_atr_mult: 2.5
+        vol_window: 20
+training:
+    value:
+        batch_size: 32
+        epochs: 50
+        validation_split: 0.2
+tuning:
+    value:
+        cv: 5
+        method: grid
+        n_iter: 10
+        n_jobs: -1
+        param_grid:
+            learning_rate:
+                - 0.01
+                - 0.1
+            max_depth:
+                - 3
+                - 5
+                - 7
+        random_state: 42
+        results_dir: results
+        results_filename: tuning_results.json
+        scoring: null
+        verbose: 0

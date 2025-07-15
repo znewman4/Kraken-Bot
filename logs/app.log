@@ -761,3 +761,11 @@ ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
 2025-07-15 14:52:09,863 [__main__] INFO: Loaded config, starting in backtest mode
 2025-07-15 14:57:13,677 [__main__] INFO: Loaded config, starting in backtest mode
 2025-07-15 14:59:31,642 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 15:50:54,103 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 15:50:57,940 [src.data_loading] INFO: Fetching bars since 2025-07-15 08:40:00 (+1ms)
+2025-07-15 15:51:00,842 [src.data_loading] INFO: Appended 17 rows up to 2025-07-15 10:05:00 (total 3490 rows)
+2025-07-15 15:51:01,030 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-15 15:53:04,095 [__main__] INFO: Loaded config, starting in pipeline mode
+2025-07-15 15:53:07,548 [src.data_loading] INFO: Fetching bars since 2025-07-15 10:05:00 (+1ms)
+2025-07-15 15:53:10,427 [src.data_loading] INFO: No new bars returned.
+2025-07-15 15:53:10,797 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv

@@ -1,0 +1,13 @@
+{"time":"2025-07-15T15:53:06.069649+05:45","level":"INFO","msg":"stream: starting","core version":"0.21.0"}
+{"time":"2025-07-15T15:53:06.099928+05:45","level":"ERROR","msg":"monitor: failed to initialize GPU resource: monitor: could not start GPU binary: fork/exec /Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/wandb/bin/gpu_stats: bad CPU type in executable"}
+{"time":"2025-07-15T15:53:06.663458+05:45","level":"INFO","msg":"stream: created new stream","id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:06.663636+05:45","level":"INFO","msg":"stream: started","id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:06.664417+05:45","level":"INFO","msg":"writer: Do: started","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:06.664446+05:45","level":"INFO","msg":"handler: started","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:06.665159+05:45","level":"INFO","msg":"sender: started","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:28.480046+05:45","level":"INFO","msg":"stream: closing","id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:29.763548+05:45","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-07-15T15:53:30.316121+05:45","level":"INFO","msg":"sender: closed","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:30.317259+05:45","level":"INFO","msg":"writer: Close: closed","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:30.317269+05:45","level":"INFO","msg":"handler: closed","stream_id":"bauzlmhr"}
+{"time":"2025-07-15T15:53:30.317578+05:45","level":"INFO","msg":"stream: closed","id":"bauzlmhr"}

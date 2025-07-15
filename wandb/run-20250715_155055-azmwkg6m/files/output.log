@@ -1,0 +1,25 @@
+2025-07-15 15:50:57,940 [src.data_loading] INFO: Fetching bars since 2025-07-15 08:40:00 (+1ms)
+2025-07-15 15:51:00,842 [src.data_loading] INFO: Appended 17 rows up to 2025-07-15 10:05:00 (total 3490 rows)
+/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/technical_engineering.py:56: RuntimeWarning: invalid value encountered in log
+  df['log_return'] = (df['close'] / df['close'].shift(1)).apply(lambda x: pd.NA if x <= 0 else np.log(x))
+2025-07-15 15:51:01,030 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py", line 138, in <module>
+    main()
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py", line 90, in main
+    equity, trades = run_backtest(cfg)[:2]  # adapt if your API differs
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/backtesting/runner.py", line 18, in run_backtest
+    df = pd.read_csv(
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/readers.py", line 1898, in _make_engine
+    return mapping[engine](f, **self.options)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/c_parser_wrapper.py", line 161, in __init__
+    self._validate_parse_dates_presence(self.names)  # type: ignore[has-type]
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/pandas/io/parsers/base_parser.py", line 243, in _validate_parse_dates_presence
+    raise ValueError(
+ValueError: Missing column provided to 'parse_dates': 'time'

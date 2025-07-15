@@ -1,0 +1,28 @@
+{
+  "os":  "macOS-15.4.1-x86_64-i386-64bit",
+  "python":  "CPython 3.9.6",
+  "startedAt":  "2025-07-15T10:05:55.423729Z",
+  "program":  "/Users/zachnewman/Kraken-Bot/Kraken-Bot/main.py",
+  "codePath":  "main.py",
+  "codePathLocal":  "main.py",
+  "git":  {
+    "remote":  "https://github.com/znewman4/Kraken-Bot.git",
+    "commit":  "6a3612b6dd58c6f409480b10ce88fa55516df96d"
+  },
+  "email":  "zachnewman04@gmail.com",
+  "root":  "/Users/zachnewman/Kraken-Bot/Kraken-Bot",
+  "host":  "Zachs-MacBook-Air.local",
+  "executable":  "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/bin/python",
+  "cpu_count":  4,
+  "cpu_count_logical":  8,
+  "disk":  {
+    "/":  {
+      "total":  "250685575168",
+      "used":  "195518046208"
+    }
+  },
+  "memory":  {
+    "total":  "8589934592"
+  },
+  "writerId":  "qx4x7652xbn9g2u6jsxi57bh1j0sci7p"
+}
