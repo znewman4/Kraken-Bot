@@ -1,106 +1,154 @@
-# src/papertrading/runner.py
-"""
-Paper-trading runner for Kraken’s demo environment using Backtrader + CCXTStore.
-
-This module mirrors your backtesting runner but connects to live bars and
-routes orders against the Kraken Futures demo API. It reuses your existing
-config_loader and KrakenStrategy (from src/backtesting/strategy2.py) so all
-trading logic stays in one place.
-
-Adjustments based on your config.yml:
-- Reads `cfg['exchange']` for API credentials, symbol, interval, timeouts, and retries.
-- Uses 5‑minute bars (`interval_minute: 5`) as compression.
-- Defaults to a 2‑hour warm‑up (can be modified).
-
-Questions:
-- Any preference for a different warm‑up period? 2 hrs ≈ 24 bars at 5 min.
-- Do you want to configure the demo endpoint under `exchange` (e.g., add an `endpoint` field)?
-"""
-import os
 import argparse
 import logging
+import yaml
 from datetime import datetime, timedelta
 
-# Install dependencies before use:
-#   pip install ccxt
-#   pip install git+https://github.com/Dave-Vallance/bt-ccxt-store.git
 import backtrader as bt
-from ccxtbt.ccxtstore import CCXTStore  # installed via bt_ccxt_store package
-
-from config_loader import load_config
-from src.backtesting.strategy2 import KrakenStrategy
-
+from ccxtbt.ccxtstore import CCXTStore
+from src.backtesting.strategy3 import KrakenStrategy  # or strategy2 if you prefer
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run paper-trading on Kraken demo")
-    parser.add_argument('-c', '--config', default='config.yml',
-                        help='Path to config file')
-    return parser.parse_args()
-
+    p = argparse.ArgumentParser(description="Run live paper-trading on Kraken Futures demo")
+    p.add_argument(
+        "-c", "--config", default="config.yml",
+        help="Path to your YAML config"
+    )
+    return p.parse_args()
 
 def main():
     args = parse_args()
 
-    # --- Logging setup
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s [%(levelname)s] %(message)s')
-    logging.info("Starting paper-trading with config: %s", args.config)
+    # — Logging setup —
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+    )
+    log = logging.getLogger("papertrading")
+    log.info("Starting paper-trading with config: %s", args.config)
 
-    # --- Load config and extract exchange settings
-    cfg    = load_config(args.config)
-    ex_cfg = cfg['exchange']
+    # — Load config.yml —
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
 
-    api_key      = ex_cfg['api_key']
-    api_secret   = ex_cfg['api_secret']
-    symbol       = ex_cfg['symbol']            # e.g. 'XBTUSD'
-    interval     = ex_cfg.get('interval_minute', 5)
-    timeout_sec  = ex_cfg.get('timeout', 30)
-    retries      = ex_cfg.get('retries', 3)
-    retry_backoff= ex_cfg.get('retry_backoff', 5)
-    endpoint     = ex_cfg.get('endpoint', 'https://demo-futures.kraken.com')
+    exch        = cfg["exchange"]
+    exchange_id = exch["name"]      # e.g. "krakenfutures"
+    symbol      = exch["symbol"]    # e.g. "BTC/USD:BTC"
+    interval    = exch.get("interval_minute", 5)
 
-    # --- Cerebro & CCXTStore
-    cerebro = bt.Cerebro()
-    cerebro.broker.set_coc(True)  # allow fractional sizing
+    # ←—— USE api_key2/secret2 if present, else fall back to api_key/secret
+    api_key     = exch.get("api_key2", exch.get("api_key"))
+    api_secret  = exch.get("api_secret2", exch.get("api_secret"))
 
-    # CCXT config: Kraken demo endpoint + timeouts
-    store_config = {
-        'apiKey': api_key,
-        'secret': api_secret,
-        'enableRateLimit': True,
-        'timeout': int(timeout_sec * 1000),   # ccxt expects ms
-        'urls': {'api': endpoint},
+    retries     = exch.get("retries", 3)
+    timeout_s   = exch.get("timeout", 30)
+
+    # — Determine the correct Futures-demo base_api —
+    raw_ep = exch.get("endpoint")
+    if raw_ep:
+        base_api = raw_ep.rstrip("/")
+    else:
+        base_api = "https://demo-futures.kraken.com/derivatives/api/v3"
+
+    log.info(">>> base_api is set to: %s", base_api)
+
+    # — Build CCXTStore config (strip creds for init) —
+    ccxt_cfg = {
+        "apiKey":          api_key,
+        "secret":          api_secret,
+        "enableRateLimit": True,
+        "timeout":         int(timeout_s * 1000),
+        "urls": {
+            "api": {
+                "public":  base_api,
+                "private": base_api,
+            }
+        }
     }
+    store_cfg = ccxt_cfg.copy()
+    store_cfg.pop("apiKey", None)
+    store_cfg.pop("secret", None)
 
+    # — Derive quote currency (e.g. "USD") —
+    currency = symbol.split("/")[-1] if "/" in symbol else symbol[-3:]
+
+    # — Instantiate store & reattach credentials —
     store = CCXTStore(
-        exchange=ex_cfg['name'],
-        currency=symbol[-3:],                  # last 3 chars, e.g. 'USD'
-        config=store_config,
+        exchange=exchange_id,
+        currency=currency,
+        config=store_cfg,
         retries=retries,
-        retry_backoff=retry_backoff,
         debug=False
     )
-    broker = store.getbroker()
-    cerebro.setbroker(broker)
+    store.exchange.apiKey = api_key
+    store.exchange.secret = api_secret
 
-    # --- Data feed: warm up with recent bars (default 2h)
-    warmup_hours = 2
-    start_time   = datetime.utcnow() - timedelta(hours=warmup_hours)
+    # — Disable CCXT’s automatic “/v3” prefix (we bake it into base_api) —
+    store.exchange.version = ""
+    store.exchange.urls['api']['public']  = base_api
+    store.exchange.urls['api']['private'] = base_api
+
+    # — Load markets and verify our symbol (no dump) —
+    markets = store.exchange.load_markets()
+    if symbol not in markets:
+        log.error("Configured symbol %r not in loaded markets!", symbol)
+        log.error("Please pick a valid market key from the Kraken Futures demo.")
+        return
+    log.info("Trading market: %s", symbol)
+
+    # — Cerebro & broker setup —
+    cerebro = bt.Cerebro()
+    cerebro.setbroker(store.getbroker())
+
+    # — Warm-up to seed ATR, volatility & persistence buffers —
+    tl          = cfg["trading_logic"]
+    atr_p       = tl.get("atr_period", 14)
+    vol_w       = tl.get("vol_window", 20)
+    persist     = tl.get("persistence", 3)
+    warmup_bars = max(atr_p, vol_w) + persist
+
+    now_utc  = datetime.utcnow()
+    lookback = timedelta(minutes=interval * warmup_bars)
+    fromdate = now_utc - lookback
+
     data = store.getdata(
-        dataname=symbol,
-        timeframe=bt.TimeFrame.Minutes,
-        compression=interval,
-        fromdate=start_time,
-        ohlcv_limit=int(warmup_hours * 60 / interval)
+        dataname           = symbol,
+        timeframe          = bt.TimeFrame.Minutes,
+        compression        = interval,
+        fromdate           = fromdate,
+        ohlcv_limit        = warmup_bars,
+        fetch_ohlcv_params = {"partial": False},
     )
     cerebro.adddata(data)
 
-    # --- Add your strategy (uses existing KrakenStrategy)
+    # — Add strategy & live analyzers —
     cerebro.addstrategy(KrakenStrategy, config=cfg)
 
-    # --- Enter live loop
-    logging.info("Entering live run loop...")
-    cerebro.run()
+    cerebro.addanalyzer(
+        bt.analyzers.TradeAnalyzer, _name="trades")
 
-if __name__ == '__main__':
+   
+
+    # — Run until Ctrl+C, then print live stats —
+    strat = None
+    try:
+        results = cerebro.run()
+        strat   = results[0]
+    except KeyboardInterrupt:
+        log.info("Interrupted—gathering live stats…")
+    if not strat and "results" in locals() and results:
+        strat = results[0]
+    if not strat:
+        log.error("No strategy instance available. Exiting.")
+        return
+ 
+
+    final_val = cerebro.broker.getvalue()
+  
+
+    print("\n=== Live Paper-Trading Results ===")
+    print(f"Final Portfolio Value: ${final_val:,.2f}")
+    
+    print("==================================\n")
+
+if __name__ == "__main__":
     main()

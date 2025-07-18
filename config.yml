@@ -4,11 +4,14 @@ data:
 
 
 exchange:
-  name: kraken
-  symbol: XBTUSD
+  name: krakenfutures
+  symbol:         "BTC/USD:BTC"      
   interval_minute: 5
+  endpoint:   "https://demo-futures.kraken.com/derivatives/api/v3"
   api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
   api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
+  api_key2: "wuK3YXZZY23yJrbOOX0x62HD2D0g4LyhVI/DZjUX/jkQnj/AbgZTzfct"
+  api_secret2: "WkHi3rGPmuwv0SYjzHODjR+pzmAGED1zbakGfTl8/wdypNchbsAYBa6YBWWtuNRFAz0WGdKMHYIyowJ7yQs3T5y4"
   timeout:    30
   retries:    3       # how many times to retry on transient failures
   retry_backoff: 5    # seconds between retry attempts
