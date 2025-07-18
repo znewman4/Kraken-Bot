@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#run_kraken_strategy.py
+
 import argparse, logging
 from config_loader import load_config
 from src.backtesting.runner import run_backtest
@@ -19,8 +20,7 @@ def main():
     logging.info("Total PnL:     $%.2f", metrics["pnl"].sum())
     raw = stats
     flat = {
-    "sharpe":       raw["sharpe"].get("sharpe"),
-    #"sharpe":       raw["sharpe"],
+    "sharpe":       raw["sharpe"],
     "max_dd":       raw["drawdown"]["max"]["drawdown"],
     "total_trades": raw["trades"]["total"]["total"],
     }
