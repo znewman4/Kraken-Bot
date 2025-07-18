@@ -1,3 +1,6 @@
+# src/backtesting.strategy.py
+
+
 import backtrader as bt
 import pandas as pd
 import numpy as np
@@ -70,71 +73,84 @@ class KrakenStrategy(bt.Strategy):
 
 
     def next(self):
-        # Time-of-day filter
         dt = self.datas[0].datetime.datetime(0)
-        if not (8 <= dt.hour <= 20):
-            return
 
-        # Ensure all features are present
-        missing = [f for f in self.feature_names if not hasattr(self.datas[0], f)]
-        if missing:
-            self.log(f"⚠️ Skipping row. Missing features: {missing}")
-            return
+        # 1) Build feature row → predict
+        row = {f: getattr(self.datas[0], f)[0] for f in self.feature_names}
+        df  = pd.DataFrame([row])
+        preds = [m.predict(df)[0] for m in self.models.values()]
+        exp_return = float(np.mean(preds))
 
-        # Build feature row and predict
-        row = {name: getattr(self.datas[0], name)[0] for name in self.feature_names}
-        df = pd.DataFrame([row])
-        preds = [model.predict(df)[0] for model in self.models.values()]
-        exp_return = np.mean(preds)
-        self.exp_returns.append(exp_return)
-
-        # Rolling volatility
+        # 2) Rolling volatility
         if self.closes:
             ret = (self.data.close[0] - self.closes[-1]) / self.closes[-1]
             self.ret_buffer.append(ret)
         self.closes.append(self.data.close[0])
-        volatility = pd.Series(self.ret_buffer[-self.vol_window:]).std() if len(self.ret_buffer) >= self.vol_window else np.nan
 
-        # Normalize edge & threshold
-        if volatility and volatility > 0:
-            edge_norm = exp_return / volatility
-            threshold = (self.tl_cfg['fee_rate'] * self.tl_cfg.get('threshold_mult', 1.0)) / volatility
+        if len(self.ret_buffer) >= self.tl_cfg['vol_window']:
+            vol = pd.Series(self.ret_buffer[-self.tl_cfg['vol_window']:]).std()
         else:
-            edge_norm = 0
-            threshold = np.inf
+            vol = np.nan
 
-        # Determine raw signal
+        # 3) Normalize edge & threshold
+        if not np.isnan(vol) and vol > 0:
+            edge_norm = exp_return / vol
+            threshold = (self.tl_cfg['fee_rate'] * self.tl_cfg.get('threshold_mult', 1.0)) / vol
+        else:
+            edge_norm, threshold = 0.0, float('inf')
+
+        # 4) Raw signal + persistence
         signal = 1 if edge_norm >= threshold else (-1 if edge_norm <= -threshold else 0)
         self.signal_buffer.append(signal)
 
-        # Compute scaled position factor
-        confidence = abs(edge_norm)
-        max_conf = max(self.edge_norms) if self.edge_norms else 1e-8
-        scaled_conf = confidence / max(max_conf, 1e-8)
-        scaled_position = scaled_conf * self.tl_cfg['max_position'] * signal
+        # 5) Scale position factor
+        conf      = abs(edge_norm)
+        max_conf  = max(self.edge_norms) if self.edge_norms else 1e-8
+        scaled_position = (conf / max(max_conf, 1e-8)) * self.tl_cfg['max_position'] * signal
 
-        # Entry with ATR bracket orders
-        if all(s == 1 for s in self.signal_buffer) and not self.position:
-            size = (self.broker.getcash() * abs(scaled_position)) / self.data.close[0]
-            stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
-            tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
-            self.buy_bracket(
-                size=size,
-                price=self.data.close[0],
-                stopprice=self.data.close[0] - stop_mult * self.atr[0],
-                limitprice=self.data.close[0] + tp_mult * self.atr[0]
-            )
-
-        # Track metrics and log
+        # 6) Append *all* metrics unconditionally
+        self.exp_returns.append(exp_return)
         self.edge_norms.append(edge_norm)
         self.thresholds.append(threshold)
         self.signals.append(signal)
         self.positions_log.append(scaled_position)
-        pnl = self.position.size * exp_return * self.data.close[0]
-        self.pnls.append(pnl)
+        self.pnls.append(self.position.size * exp_return * self.data.close[0])
 
+        # 7) Only place orders if we're in hours and long
+        in_hours = 8 <= dt.hour <= 20
+        if not in_hours or scaled_position <= 0 or not any(s == 1 for s in self.signal_buffer):
+            # skip trading logic, but metrics are safely recorded
+            return
+
+         # 1) Cancel any leftover bracket (entry + stop + limit)
+        if getattr(self, 'bracket_orders', None):
+            for o in self.bracket_orders:
+                self.cancel(o)
+            self.bracket_orders = []
+
+        # 8) Compute actual size and bracket parameters
+        size_req = (self.broker.getcash() * abs(scaled_position)) / self.data.close[0]
+        max_affordable = self.broker.getcash() / self.data.close[0]
+        size = min(size_req, max_affordable)
+
+        stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
+        tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
+
+        self.log(f"{dt.isoformat()} ▶️ CASH={self.broker.getcash():.2f}, "
+                f"PRICE={self.data.close[0]:.2f}, size={size:.6f}")
+
+        # 9) Place bracket
+        self.buy_bracket(
+            size      = size,
+            price     = self.data.close[0],
+            stopprice = self.data.close[0] - stop_mult * self.atr[0],
+            limitprice= self.data.close[0] + tp_mult   * self.atr[0],
+        )
+
+        # 10) Optional periodic logging
         if dt.minute % 15 == 0:
-            self.log(f"Signal={signal}, PosFactor={scaled_position:.3f}, Edge={edge_norm:.3f}, Thresh={threshold:.3f}")
+            self.log(f"Signal={signal}, PosFactor={scaled_position:.3f}, "
+                    f"Edge={edge_norm:.3f}, Thresh={threshold:.3f}")
 
     def get_metrics(self):
         return pd.DataFrame({

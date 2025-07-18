@@ -1,22 +1,31 @@
+#!/usr/bin/env python
+import argparse, logging
+from config_loader import load_config
 from src.backtesting.runner import run_backtest
 
-if __name__ == "__main__":
-    print("🔁 Running KrakenStrategy backtest only...")
-    metrics, _ = run_backtest("config.yml")
-    print("✅ Done.")
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("-c", "--config", default="config.yml")
+    return p.parse_args()
 
-    if metrics.empty:
-        print("⚠️ No metrics returned. Possibly no trades were made.")
-    else:
-        final_equity = metrics['pnl'].cumsum().iloc[-1] + metrics['close'].iloc[0]
-        total_pnl = metrics['pnl'].sum()
-        num_trades = (metrics['signal'] != 0).sum()
-        sharpe = metrics['pnl'].mean() / (metrics['pnl'].std() + 1e-8) * (252**0.5)
+def main():
+    args = parse_args()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.info("Running backtest with config %s", args.config)
+    metrics, stats, cerebro = run_backtest(args.config)
 
-        print("\n📊 KrakenStrategy Summary:")
-        print(f"• Final Equity: ${final_equity:.2f}")
-        print(f"• Total PnL:    ${total_pnl:.2f}")
-        print(f"• # Trades:     {num_trades}")
-        print(f"• Sharpe Ratio: {sharpe:.2f}")
+    logging.info("Final equity: $%.2f", cerebro.broker.getvalue())
+    logging.info("Total PnL:     $%.2f", metrics["pnl"].sum())
+    raw = stats
+    flat = {
+    "sharpe":       raw["sharpe"].get("sharpe"),
+    #"sharpe":       raw["sharpe"],
+    "max_dd":       raw["drawdown"]["max"]["drawdown"],
+    "total_trades": raw["trades"]["total"]["total"],
+    }
+    print(flat)
 
     
+if __name__ == "__main__":
+    main()

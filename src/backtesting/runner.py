@@ -1,6 +1,10 @@
+# src/backtesting/runner.py
+
+
+
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategy import KrakenStrategy
+from src.backtesting.strategy2 import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
 
@@ -12,6 +16,11 @@ def run_backtest(config_path='config.yml'):
 
     config = load_config(config_path)
     cerebro = bt.Cerebro()
+    cerebro.broker.set_coc(True) 
+
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+    cerebro.addanalyzer(bt.analyzers.DrawDown,    _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     df = pd.read_csv(
         config['data']['feature_data_path'],
@@ -39,4 +48,22 @@ def run_backtest(config_path='config.yml'):
     strat = results[0]
     metrics = strat.get_metrics()
 
-    return metrics, cerebro
+    #sharpe = cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+
+    sharpe = cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio,
+        _name="sharpe",
+        timeframe = bt.TimeFrame.Minutes,    # use minute bars
+        compression = 0,                    # group every 15 bars → 15 min
+)    
+    drawdown   = strat.analyzers.drawdown.get_analysis()
+    trade_stats= strat.analyzers.trades.get_analysis()
+
+    stats = {
+        "sharpe": sharpe,
+        "drawdown": drawdown,
+        "trades": trade_stats,
+    }
+
+
+    return metrics, stats, cerebro
