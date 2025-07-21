@@ -119,7 +119,7 @@ def main():
 
     logger.info("Running backtest using KrakenStrategy...")
 
-    metrics, cerebro = run_backtest(args.config)
+    metrics, stats, cerebro = run_backtest(args.config)
     logger.info("Final equity: $%.2f", cerebro.broker.getvalue())
     logger.info("Total PnL: $%.2f", metrics['pnl'].sum())
 

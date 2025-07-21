@@ -31,8 +31,8 @@ def main():
         cfg = yaml.safe_load(f)
 
     exch        = cfg["exchange"]
-    exchange_id = exch["name"]      # e.g. "krakenfutures"
-    symbol      = exch["symbol"]    # e.g. "BTC/USD:BTC"
+    exchange_id = exch["name2"]      # e.g. "krakenfutures"
+    symbol      = exch["symbol2"]    # e.g. "BTC/USD:BTC"
     interval    = exch.get("interval_minute", 5)
 
     # ←—— USE api_key2/secret2 if present, else fall back to api_key/secret

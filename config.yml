@@ -4,8 +4,10 @@ data:
 
 
 exchange:
-  name: krakenfutures
-  symbol:         "BTC/USD:BTC"      
+  name: kraken
+  symbol: XBTUSD  
+  name2: krakenfutures
+  symbol2:         "BTC/USD:BTC"    
   interval_minute: 5
   endpoint:   "https://demo-futures.kraken.com/derivatives/api/v3"
   api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"

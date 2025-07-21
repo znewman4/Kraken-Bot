@@ -457,3 +457,40 @@ time                                       ...
 2025-07-15 16:12:42,295 [__main__] INFO: Running backtest using KrakenStrategy...
 2025-07-15 16:12:49,617 [__main__] INFO: Final equity: $108292.88
 2025-07-15 16:12:49,618 [__main__] INFO: Total PnL: $528.50
+2025-07-21 16:55:28,510 [__main__] INFO: Loaded config, starting up
+2025-07-21 16:55:28,824 [src.data_loading] INFO: Fetching bars since 2025-07-15 10:25:00 (+1ms)
+2025-07-21 16:55:32,138 [src.data_loading] WARNING: fetch_ohlcv failed attempt 1/3: kraken does not have market symbol BTC//USD:BTC – retrying in 5s…
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1143, in fetch_ohlcv
+    market = self.market(symbol)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 5561, in market
+    raise BadSymbol(self.id + ' does not have market symbol ' + symbol)
+ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USD:BTC
+2025-07-21 16:55:37,372 [src.data_loading] WARNING: fetch_ohlcv failed attempt 2/3: kraken does not have market symbol BTC//USD:BTC – retrying in 5s…
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1143, in fetch_ohlcv
+    market = self.market(symbol)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 5561, in market
+    raise BadSymbol(self.id + ' does not have market symbol ' + symbol)
+ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USD:BTC
+2025-07-21 16:55:42,378 [src.data_loading] ERROR: All 3 attempts to fetch_ohlcv failed for BTC//USD:BTC/5m: kraken does not have market symbol BTC//USD:BTC
+Traceback (most recent call last):
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/src/data_loading.py", line 21, in fetch_ohlcv_with_retry
+    bars = exchange.fetch_ohlcv(symbol, timeframe, since=since, limit=limit)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/kraken.py", line 1143, in fetch_ohlcv
+    market = self.market(symbol)
+  File "/Users/zachnewman/Kraken-Bot/Kraken-Bot/.venv/lib/python3.9/site-packages/ccxt/base/exchange.py", line 5561, in market
+    raise BadSymbol(self.id + ' does not have market symbol ' + symbol)
+ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USD:BTC
+2025-07-21 16:59:45,572 [__main__] INFO: Loaded config, starting up
+2025-07-21 16:59:45,648 [src.data_loading] INFO: Fetching bars since 2025-07-15 10:25:00 (+1ms)
+2025-07-21 16:59:48,700 [src.data_loading] INFO: Appended 720 rows up to 2025-07-21 11:10:00 (total 4214 rows)
+2025-07-21 16:59:48,907 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-21 17:00:03,061 [__main__] INFO: Retuning using only top SHAP features...
+2025-07-21 17:00:06,819 [__main__] INFO: Retraining final model using top features and best params...
+2025-07-21 17:00:08,350 [__main__] INFO: Final model saved as models/final_xgb_model.json
+2025-07-21 17:00:09,015 [__main__] INFO: Running backtest using KrakenStrategy...
