@@ -9,7 +9,7 @@ Created on Thu Jun 12 21:04:58 2025
 # src/data_cleaning.py
 import pandas as pd
 
-def clean_ohlcv(df):
+def clean_ohlcv(df, data_cfg):
     """
     Clean raw OHLCV DataFrame.
 

@@ -1,4 +1,4 @@
-# src/feature_engineering.py
+# src/technical_engineering.py
 
 import pandas as pd
 import pandas_ta as ta
@@ -6,7 +6,7 @@ import numpy as np
 
 
 
-def add_technical_indicators(df):
+def add_technical_indicators(df, features_cfg):
     """
     Add technical indicators to OHLCV DataFrame.
     Includes: EMA, RSI, MACD, Bollinger Bands
@@ -28,7 +28,11 @@ def add_technical_indicators(df):
 
     # MACD
     macd = ta.macd(df['close'], fast=12, slow=26, signal=9)
+    for col in ['MACD_12_26_9', 'MACDh_12_26_9', 'MACDs_12_26_9']:
+        if col in df.columns:
+            df = df.drop(columns=col)
     df = df.join(macd)
+ 
 
     # Bollinger Bands
     bb = ta.bbands(df['close'], length=20, std=2)
@@ -36,7 +40,7 @@ def add_technical_indicators(df):
 
     return df
 
-def add_return_features(df):
+def add_return_features(df, features_cfg):
     """
     Add lagged returns and rolling volatility features.
 
