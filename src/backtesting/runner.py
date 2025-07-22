@@ -1,34 +1,38 @@
 # src/backtesting/runner.py
 
-
-
 import backtrader as bt
 import pandas as pd
+import numpy as np
 from src.backtesting.strategy3 import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
-
 
 
 def run_backtest(config_path='config.yml'):
 
     print("Loading config from:", config_path)
 
+    # ——— Load config & init Cerebro —————————————————————————————————
     config = load_config(config_path)
     cerebro = bt.Cerebro()
-    cerebro.broker.set_coc(True) 
+    cerebro.broker.set_coc(True)
 
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
-    cerebro.addanalyzer(bt.analyzers.DrawDown,    _name="drawdown")
+    # ——— Register analyzers up front —————————————————————————————
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="sharpe",
+        timeframe=bt.TimeFrame.Minutes,
+        compression=0
+    )
+    cerebro.addanalyzer(bt.analyzers.DrawDown,      _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
+    # ——— Load & slice data ———————————————————————————————————————
     df = pd.read_csv(
         config['data']['feature_data_path'],
         parse_dates=['time']
     )
     df.set_index('time', inplace=True)
 
-    # now optionally slice to first N bars:
     max_bars = config['backtest'].get('max_bars')
     if max_bars:
         df = df.iloc[:max_bars]
@@ -36,6 +40,7 @@ def run_backtest(config_path='config.yml'):
     data = EngineeredData(dataname=df)
     cerebro.adddata(data)
 
+    # ——— Strategy, commission, slippage, cash —————————————————————
     cerebro.addstrategy(KrakenStrategy, config=config)
     cerebro.broker.setcommission(commission=config['trading_logic']['fee_rate'])
     cerebro.broker.set_slippage_perc(
@@ -44,26 +49,20 @@ def run_backtest(config_path='config.yml'):
     )
     cerebro.broker.setcash(config['trading_logic']['btc_stake'] * df['close'].iloc[0])
 
+    # ——— Run backtest & pull analyzers ——————————————————————————
     results = cerebro.run()
-    strat = results[0]
+    strat   = results[0]
     metrics = strat.get_metrics()
 
-    #sharpe = cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+    sharpe_a   = strat.analyzers.sharpe.get_analysis()
+    drawdown_a = strat.analyzers.drawdown.get_analysis()
+    trades_a   = strat.analyzers.trades.get_analysis()
 
-    sharpe = cerebro.addanalyzer(
-        bt.analyzers.SharpeRatio,
-        _name="sharpe",
-        timeframe = bt.TimeFrame.Minutes,    # use minute bars
-        compression = 0,                    # group every 15 bars → 15 min
-)    
-    drawdown   = strat.analyzers.drawdown.get_analysis()
-    trade_stats= strat.analyzers.trades.get_analysis()
-
+    # ——— Build stats dict with numeric Sharpe ——————————————————————
     stats = {
-        "sharpe": sharpe,
-        "drawdown": drawdown,
-        "trades": trade_stats,
+        "sharpe":   sharpe_a.get("sharperatio", np.nan),
+        "drawdown": drawdown_a,
+        "trades":   trades_a,
     }
-
 
     return metrics, stats, cerebro
