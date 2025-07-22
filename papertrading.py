@@ -126,7 +126,7 @@ def main():
     cerebro.addanalyzer(
         bt.analyzers.TradeAnalyzer, _name="trades")
 
-   
+    print("Running live paper-trading with warmup bars:", warmup_bars)
 
     # — Run until Ctrl+C, then print live stats —
     strat = None

@@ -1,4 +1,4 @@
-#run_kraken_strategy.py
+#backtrade.py
 
 import argparse, logging
 from config_loader import load_config
