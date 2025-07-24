@@ -1,0 +1,97 @@
+data:
+  raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
+  feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
+
+
+exchange:
+  name: kraken
+  symbol: XBTUSD  
+  name2: krakenfutures
+  symbol2:         "BTC/USD:BTC"    
+  interval_minute: 5
+  endpoint:   "https://demo-futures.kraken.com/derivatives/api/v3"
+  api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
+  api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
+  api_key2: "wuK3YXZZY23yJrbOOX0x62HD2D0g4LyhVI/DZjUX/jkQnj/AbgZTzfct"
+  api_secret2: "WkHi3rGPmuwv0SYjzHODjR+pzmAGED1zbakGfTl8/wdypNchbsAYBa6YBWWtuNRFAz0WGdKMHYIyowJ7yQs3T5y4"
+  timeout:    30
+  retries:    3       # how many times to retry on transient failures
+  retry_backoff: 5    # seconds between retry attempts
+
+
+backtest:
+  start_date: "2021-01-01"
+  end_date:   "2021-12-31"
+  cash:       10000
+  commission: 0.0025
+  slippage_perc: 0.0002
+  max_bars: 2000
+
+
+features:
+  indicators:
+    - sma: {window: 20}
+    - rsi: {window: 14}
+  drop_na: true
+
+model:
+  type: "xgboost"
+  features: "models/final_xgb_model_features.json"
+  hyperparameters:
+    n_estimators: 100
+    max_depth:    5
+    learning_rate: 0.1
+  output_dir: "models"
+  filename:   "final_xgb_model.json"
+
+tuning:
+  method: "grid"
+  param_grid:
+    max_depth:       [3,5,7]
+    learning_rate:   [0.01,0.1]
+  cv:              5
+  scoring:         null
+  n_iter:          10
+  random_state:    42
+  n_jobs:          -1
+  verbose:         0
+  results_dir:     "results"
+  results_filename: "tuning_results.json"
+
+training:
+  fit_params:     {}
+  epochs:         50
+  batch_size:     32
+  validation_split: 0.2
+
+selection:
+  method: "shap"
+  top_k:    10
+
+
+trading_logic:
+  model_paths:
+    1:  "models/xgb_h1.json"
+    5:  "models/xgb_h5.json"
+    10: "models/xgb_h10.json"
+  fee_rate:       0.002
+  vol_window:     20
+  max_position:   2.0
+  persistence: 2
+  btc_stake:      1
+  threshold_mult: 0.05
+  stop_loss_atr_mult: 1.5
+  take_profit_atr_mult: 2.0
+
+logging:
+  level: INFO
+  format: '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+  handlers:
+    console:
+      enabled: true
+    file:
+      enabled: true
+      filename: 'logs/app.log'
+
+
+
