@@ -2,3 +2,6 @@ venv/
 .venv/
 .env/
 
+.conda/
+__pycache__/
+*.py[cod]
