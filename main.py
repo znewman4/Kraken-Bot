@@ -107,21 +107,3 @@ if __name__ == "__main__":
     main()
 
 
-# === Injected Backtest Integration ===
-import logging
-from src.backtesting.runner import run_backtest
-
-logger = logging.getLogger(__name__)
-
-def main():
-    args = parse_args()
-    cfg = load_config(args.config)
-
-    logger.info("Running backtest using KrakenStrategy...")
-
-    metrics, stats, cerebro = run_backtest(args.config)
-    logger.info("Final equity: $%.2f", cerebro.broker.getvalue())
-    logger.info("Total PnL: $%.2f", metrics['pnl'].sum())
-
-if __name__ == "__main__":
-    main()

@@ -17,12 +17,14 @@ def main():
     metrics, stats, cerebro = run_backtest(args.config)
 
     logging.info("Final equity: $%.2f", cerebro.broker.getvalue())
-    logging.info("Total PnL:     $%.2f", metrics["pnl"].sum())
+    logging.info("Total PnL:     $%.2f", stats["real_pnl"])
     raw = stats
+
     flat = {
     "sharpe":       raw["sharpe"],
     "max_dd":       raw["drawdown"]["max"]["drawdown"],
     "total_trades": raw["trades"]["total"]["total"],
+    "real_pnl":     stats["real_pnl"],
     }
     print(flat)
 

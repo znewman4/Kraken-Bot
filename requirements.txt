@@ -2,7 +2,6 @@ pandas
 numpy
 python-dotenv
 pandas-ta
-mlflow
 shap
 xgboost
 scikit-learn

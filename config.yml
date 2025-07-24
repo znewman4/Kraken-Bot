@@ -25,7 +25,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 2000
+  max_bars: 500
 
 
 features:
@@ -76,9 +76,8 @@ trading_logic:
     10: "models/xgb_h10.json"
   fee_rate:       0.002
   vol_window:     20
-  max_position:   2.0
+  max_position:   1
   persistence: 2
-  btc_stake:      1
   threshold_mult: 0.05
   stop_loss_atr_mult: 1.5
   take_profit_atr_mult: 2.0

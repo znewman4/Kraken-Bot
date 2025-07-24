@@ -34,8 +34,6 @@ class KrakenStrategy(bt.Strategy):
         with open(self.model_cfg['features'], 'r') as f:
             self.feature_names = json.load(f)
 
-        print("▶️ Features loaded:", self.feature_names)
-
 
         # Data trackers
         self.closes        = []
@@ -86,6 +84,17 @@ class KrakenStrategy(bt.Strategy):
         """Logger for __init__, uses UTC."""
         dt = datetime.utcnow()
         print(f"{dt.isoformat()} - {txt}")
+
+    def notify_trade(self, trade):
+    # Only record once the trade is closed
+        if trade.isclosed:
+            pnl = trade.pnl        # gross PnL
+            pnl_comm = trade.pnlcomm  # net PnL after commission
+            # log it
+            self.log(f"TRADE CLOSED  |  GROSS PnL={pnl:.2f}  NET PnL={pnl_comm:.2f}")
+            # append to your pnls list for true realized PnL
+            self.pnls.append(pnl_comm)
+
 
     def log(self, txt):
         """Main logger, falls back to UTC if no bar yet."""
@@ -152,23 +161,39 @@ class KrakenStrategy(bt.Strategy):
         sig = 1 if edge >= thr else (-1 if edge <= -thr else 0)
         self.signal_buffer.append(sig)
 
-        # 5) Position factor
+        # 5) Position factor (raw)
         conf     = abs(edge)
         max_conf = max(self.edge_norms) if self.edge_norms else 1e-8
         pos_fac  = (conf / max(max_conf, 1e-8)) * self.tl_cfg['max_position'] * sig
 
+        # 5b) Clamp into [-max_position, +max_position]
+        mp = self.tl_cfg['max_position']
+        pos_fac = max(min(pos_fac, mp), -mp)
+
+
+
+       
         # 6) Record metrics
         self.exp_returns.append(exp_r)
         self.edge_norms.append(edge)
         self.thresholds.append(thr)
         self.signals.append(sig)
         self.positions_log.append(pos_fac)
-        self.pnls.append(self.position.size * exp_r * self.data.close[0])
 
         # 7) Entry gating
         dt = self.datas[0].datetime.datetime(0)
-        if not (8 <= dt.hour <= 20) or pos_fac <= 0 or not any(s == 1 for s in self.signal_buffer):
+        # 1) Only trade in your allowed hours
+        if not (8 <= dt.hour <= 20):
             return
+
+        # 2) Don’t trade if there’s no signal
+        if sig == 0:
+            return
+
+        # 3) Require N‐bar persistence of the same sign
+        if len(self.signal_buffer) >= self.signal_buffer.maxlen:
+            if not all(s == sig for s in self.signal_buffer):
+                return
 
         # 8) Sizing
         size_req   = (self.broker.getcash() * abs(pos_fac)) / self.data.close[0]
@@ -180,14 +205,21 @@ class KrakenStrategy(bt.Strategy):
         self.log(f"CASH={self.broker.getcash():.2f}, PRICE={self.data.close[0]:.2f}, size={size:.6f}")
 
         # 9) Bracket orders
-        entry, stop, limit = self.buy_bracket(
-            size       = size,
-            price      = self.data.close[0],
-            stopprice  = self.data.close[0] - stop_mult * self.atr[0],
-            limitprice = self.data.close[0] + tp_mult   * self.atr[0],
-        )
-        self.bracket_orders = [entry, stop, limit]
+        if sig ==  1:
+            entry, stop, limit = self.buy_bracket(
+                size       = size,
+                price      = self.data.close[0],
+                stopprice  = self.data.close[0] - stop_mult * self.atr[0],
+                limitprice = self.data.close[0] + tp_mult   * self.atr[0],
+            )
 
+        elif sig == -1:
+            entry, stop, limit = self.sell_bracket(
+                size       = size,
+                price      = self.data.close[0],
+                stopprice  = self.data.close[0] + stop_mult * self.atr[0],
+                limitprice = self.data.close[0] - tp_mult   * self.atr[0],
+            )
         # 10) Periodic logging
         if dt.minute % 15 == 0:
             self.log(f"Signal={sig}, PosFac={pos_fac:.3f}, Edge={edge:.3f}, Thresh={thr:.3f}")
@@ -200,5 +232,4 @@ class KrakenStrategy(bt.Strategy):
             'threshold':  self.thresholds,
             'signal':     self.signals,
             'position':   self.positions_log,
-            'pnl':        self.pnls
         })
