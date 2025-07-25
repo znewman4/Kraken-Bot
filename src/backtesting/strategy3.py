@@ -22,17 +22,17 @@ class KrakenStrategy(bt.Strategy):
         self.tl_cfg        = self.cfg['trading_logic']
         self.model_cfg     = self.cfg['model']
         self.models        = {}
-        self.feature_names = []
+        self.models = {}
+        self.feature_names_map = {}
 
-        # Load XGBoost models
         for horizon, path in self.tl_cfg['model_paths'].items():
             m = xgb.XGBRegressor()
             m.load_model(path)
             self.models[horizon] = m
 
-        # Load feature names
-        with open(self.model_cfg['features'], 'r') as f:
-            self.feature_names = json.load(f)
+            # Store the exact features this model was trained on
+            self.feature_names_map[horizon] = m.get_booster().feature_names
+
 
 
         # Data trackers
@@ -117,28 +117,33 @@ class KrakenStrategy(bt.Strategy):
         tp = (self.data.high[0] + self.data.low[0] + self.data.close[0]) / 3.0
         self.tp_buffer.append(tp)
         self.vol_buffer.append(self.data.volume[0])
+        if sum(self.vol_buffer) > 0:
+            vwap_val = sum(p * v for p, v in zip(self.tp_buffer, self.vol_buffer)) / sum(self.vol_buffer)
+        else:
+            vwap_val = tp
 
         # 1) Build feature row
-        row = {}
-        for f in self.feature_names:
-            lf = f.lower()
-            if lf == 'sma':
-                row[f] = float(self.sma[0])
-            elif lf == 'rsi':
-                row[f] = float(self.rsi[0])
-            elif lf == 'vwap':
-                if sum(self.vol_buffer) > 0:
-                    vwap_val = sum(p * v for p, v in zip(self.tp_buffer, self.vol_buffer)) / sum(self.vol_buffer)
+        preds = []
+        for horizon, m in self.models.items():
+            feats = self.feature_names_map[horizon]
+            row = {}
+            for f in feats:
+                lf = f.lower()
+                if lf == 'sma':
+                    row[f] = float(self.sma[0])
+                elif lf == 'rsi':
+                    row[f] = float(self.rsi[0])
+                elif lf == 'vwap':
+                    # same VWAP logic…
+                    row[f] = float(vwap_val)
                 else:
-                    vwap_val = tp
-                row[f] = float(vwap_val)
-            else:
-                # raw fields: open, high, low, close, volume, etc.
-                row[f] = float(getattr(self.data, f)[0])
+                    row[f] = float(getattr(self.data, f)[0])
 
-        df    = pd.DataFrame([row])
-        preds = [m.predict(df)[0] for m in self.models.values()]
+            df_model = pd.DataFrame([row])
+            preds.append(m.predict(df_model)[0])
+
         exp_r = float(np.mean(preds))
+
 
         # 2) Rolling volatility
         if self.closes:
