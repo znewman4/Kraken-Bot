@@ -1,4 +1,3 @@
-
 import os
 import argparse
 import logging
@@ -7,13 +6,12 @@ from pathlib import Path
 import pandas as pd
 
 from config_loader import load_config
-from src.data_loading          import append_new_ohlcv
-from src.data_cleaning         import clean_ohlcv, validate_ohlcv
+from src.data_loading import append_new_ohlcv
+from src.data_cleaning import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
-from src.modeling             import prepare_features_and_target
-from src.training             import run_tuning, run_training_pipeline
-from src.test_trading_logic        import run_test 
-
+from src.modeling import prepare_features_and_target
+from src.training import run_tuning, run_training_pipeline
+from src.test_trading_logic import run_test
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Kraken trading bot")
@@ -33,11 +31,11 @@ def parse_args():
 
 def main():
     args = parse_args()
-    cfg  = load_config(args.config, overrides=args.set)
+    cfg = load_config(args.config, overrides=args.set)
 
     # ─── Logging Setup ─────────────────────────────────────────────────────
-    log_cfg   = cfg['logging']
-    handlers  = []
+    log_cfg = cfg['logging']
+    handlers = []
 
     # Console handler
     if log_cfg['handlers']['console']['enabled']:
@@ -60,9 +58,9 @@ def main():
     logger.info("Loaded config, starting up")
 
     # ─── Data Pipeline ──────────────────────────────────────────────────────
-    pair      = cfg['exchange']['symbol']
-    interval  = cfg['exchange']['interval_minute']
-    raw_path  = Path(cfg['data']['raw_data_path'])
+    pair = cfg['exchange']['symbol']
+    interval = cfg['exchange']['interval_minute']
+    raw_path = Path(cfg['data']['raw_data_path'])
     proc_path = Path(cfg['data']['feature_data_path'])
 
     df = append_new_ohlcv(pair, interval, raw_path, cfg['exchange'])
@@ -79,12 +77,26 @@ def main():
     df.to_csv(proc_path)
     logger.info("Engineered data saved to %s", proc_path)
 
+    # ─── Feature & Target ──────────────────────────────────────────────────
     X, y = prepare_features_and_target(df, cfg['model'])
+
+    # ─── Hyperparameter Tuning ──────────────────────────────────────────────
     results, results_path = run_tuning(X, y, cfg['tuning'], cfg['model'])
+
+    # ─── Training Final Model ───────────────────────────────────────────────
     model, shap_values, top_features = run_training_pipeline(
         X, y, results_path, cfg['training'], cfg['model'], cfg['selection']
     )
 
+    # Always save the final model (ensuring default persistence)
+    os.makedirs(cfg['model']['output_dir'], exist_ok=True)
+    model.save_model(
+        os.path.join(cfg['model']['output_dir'], cfg['model']['filename'])
+    )
+    logger.info("Final model saved as %s/%s",
+                cfg['model']['output_dir'], cfg['model']['filename'])
+
+    # ─── Optional SHAP-based Retraining ────────────────────────────────────
     if cfg['selection']['method'] == 'shap':
         logger.info("Retuning using only top SHAP features...")
         X_top = X[top_features]
@@ -101,9 +113,5 @@ def main():
         logger.info("Final model saved as %s/%s",
                     cfg['model']['output_dir'], cfg['model']['filename'])
 
-   
-
 if __name__ == "__main__":
     main()
-
-

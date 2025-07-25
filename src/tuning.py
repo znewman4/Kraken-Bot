@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, TimeSeriesSplit
 
 
 def tune_model(estimator, X, y, tuning_cfg):
@@ -12,7 +12,14 @@ def tune_model(estimator, X, y, tuning_cfg):
     """
     method = tuning_cfg.get("method", "grid")
     param_grid = tuning_cfg.get("param_grid", {})
-    cv = tuning_cfg.get("cv", 5)
+
+    # Wrap integer cv values with a forward-only TimeSeriesSplit
+    raw_cv = tuning_cfg.get("cv", 5)
+    if isinstance(raw_cv, int):
+        cv = TimeSeriesSplit(n_splits=raw_cv)
+    else:
+        cv = raw_cv
+
     scoring = tuning_cfg.get("scoring", None)
     n_iter = tuning_cfg.get("n_iter", 10)
     random_state = tuning_cfg.get("random_state", 42)

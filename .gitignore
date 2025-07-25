@@ -1,7 +1,10 @@
-venv/
-.venv/
-.env/
-
 .conda/
 __pycache__/
 *.py[cod]
+*.so
+venv/
+.venv/
+.env
+*.log
+.DS_Store
+.ipynb_checkpoints/

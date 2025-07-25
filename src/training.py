@@ -6,6 +6,7 @@ import xgboost as xgb
 import shap
 import numpy as np
 from .tuning import tune_model
+from joblib import dump
 
 
 def run_tuning(X, y, tuning_cfg, model_cfg):
@@ -21,7 +22,7 @@ def run_tuning(X, y, tuning_cfg, model_cfg):
     else:
         raise ValueError(f"Unsupported model type '{model_type}'")
 
-    # Delegate to tune_model
+    # Delegate to tuned search (with TimeSeriesSplit CV)
     best_params, results_path = tune_model(estimator, X, y, tuning_cfg)
     return best_params, results_path
 
@@ -54,7 +55,7 @@ def run_training_pipeline(X, y, tuning_results_path, training_cfg, model_cfg, se
     if selection_cfg.get("method", "") == "shap":
         explainer = shap.Explainer(estimator)
         shap_values = explainer(X)
-        # Mean absolute shap per feature
+        # Mean absolute SHAP per feature
         mean_abs = np.abs(shap_values.values).mean(axis=0)
         feature_names = X.columns if hasattr(X, "columns") else [f"f{i}" for i in range(len(mean_abs))]
         k = selection_cfg.get("top_k", 10)
@@ -65,11 +66,16 @@ def run_training_pipeline(X, y, tuning_results_path, training_cfg, model_cfg, se
     output_dir = model_cfg.get("output_dir", "models")
     filename = model_cfg.get("filename", "final_model.json")
     Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    model_path = Path(output_dir) / filename
     if hasattr(estimator, "save_model"):
-        estimator.save_model(Path(output_dir) / filename)
+        # Use XGBoost native save if available
+        estimator.save_model(model_path)
     else:
-        # fallback: save params
-        with open(Path(output_dir) / filename, "w") as f:
-            json.dump(estimator.get_params(), f, indent=2)
+        # Fallback: use joblib to save the full model object
+        # Ensure the file has .pkl extension
+        if model_path.suffix != ".pkl":
+            model_path = model_path.with_suffix(".pkl")
+        dump(estimator, model_path)
 
     return estimator, shap_values, top_features
