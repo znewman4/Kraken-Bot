@@ -35,6 +35,7 @@ features:
   drop_na: true
 
 model:
+  horizons: [1,12,24,48]
   type: "xgboost"
   features: "models/final_xgb_model_features.json"
   hyperparameters:
@@ -71,9 +72,10 @@ selection:
 
 trading_logic:
   model_paths:
-    1:  "models/xgb_h1.json"
-    5:  "models/xgb_h5.json"
-    10: "models/xgb_h10.json"
+    "1":  "models/xgb_h1.json"
+    "12": "models/xgb_h12.json"
+    "24": "models/xgb_h24.json"
+    "48": "models/xgb_h48.json"
   fee_rate:       0.002
   vol_window:     20
   max_position:   1

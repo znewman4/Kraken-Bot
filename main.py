@@ -1,3 +1,4 @@
+# src/main.py
 import os
 import argparse
 import logging
@@ -11,23 +12,20 @@ from src.data_cleaning import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
 from src.modeling import prepare_features_and_target
 from src.training import run_tuning, run_training_pipeline
-from src.test_trading_logic import run_test
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run Kraken trading bot")
     parser.add_argument(
-        '--config',
-        type=str,
-        default='config.yml',
+        '--config', type=str, default='config.yml',
         help='Path to your config file (YAML or JSON)'
     )
     parser.add_argument(
-        '--set',
-        action='append',
-        default=[],
+        '--set', action='append', default=[],
         help='Override a config entry, e.g. --set backtest.start_date=2022-01-01'
     )
     return parser.parse_args()
+
 
 def main():
     args = parse_args()
@@ -36,15 +34,11 @@ def main():
     # ─── Logging Setup ─────────────────────────────────────────────────────
     log_cfg = cfg['logging']
     handlers = []
-
-    # Console handler
     if log_cfg['handlers']['console']['enabled']:
         ch = logging.StreamHandler()
         ch.setLevel(log_cfg['level'])
         ch.setFormatter(logging.Formatter(log_cfg['format']))
         handlers.append(ch)
-
-    # File handler
     if log_cfg['handlers']['file']['enabled']:
         log_path = Path(log_cfg['handlers']['file']['filename'])
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +46,6 @@ def main():
         fh.setLevel(log_cfg['level'])
         fh.setFormatter(logging.Formatter(log_cfg['format']))
         handlers.append(fh)
-
     logging.basicConfig(level=log_cfg['level'], handlers=handlers)
     logger = logging.getLogger(__name__)
     logger.info("Loaded config, starting up")
@@ -77,41 +70,42 @@ def main():
     df.to_csv(proc_path)
     logger.info("Engineered data saved to %s", proc_path)
 
-    # ─── Feature & Target ──────────────────────────────────────────────────
-    X, y = prepare_features_and_target(df, cfg['model'])
+    # ─── Horizon Ensemble Training & Saving ─────────────────────────────────
+    for h_str, model_path in cfg['trading_logic']['model_paths'].items():
+        h = int(h_str)
+        cfg['model']['horizon'] = h
 
-    # ─── Hyperparameter Tuning ──────────────────────────────────────────────
-    results, results_path = run_tuning(X, y, cfg['tuning'], cfg['model'])
+        # 1) build features & target for this horizon
+        X_h, y_h = prepare_features_and_target(df, cfg['model'])
 
-    # ─── Training Final Model ───────────────────────────────────────────────
-    model, shap_values, top_features = run_training_pipeline(
-        X, y, results_path, cfg['training'], cfg['model'], cfg['selection']
-    )
+        # 2) hyperparameter tuning
+        best_params, tuning_path = run_tuning(X_h, y_h, cfg['tuning'], cfg['model'])
 
-    # Always save the final model (ensuring default persistence)
-    os.makedirs(cfg['model']['output_dir'], exist_ok=True)
-    model.save_model(
-        os.path.join(cfg['model']['output_dir'], cfg['model']['filename'])
-    )
-    logger.info("Final model saved as %s/%s",
-                cfg['model']['output_dir'], cfg['model']['filename'])
-
-    # ─── Optional SHAP-based Retraining ────────────────────────────────────
-    if cfg['selection']['method'] == 'shap':
-        logger.info("Retuning using only top SHAP features...")
-        X_top = X[top_features]
-        results_top, results_top_path = run_tuning(X_top, y, cfg['tuning'], cfg['model'])
-        logger.info("Retraining final model using top features and best params...")
-        model_top_final, _, _ = run_training_pipeline(
-            X_top, y, results_top_path,
+        # 3) train final model on full set
+        model_h, shap_vals_h, top_feats_h = run_training_pipeline(
+            X_h, y_h, tuning_path,
             cfg['training'], cfg['model'], cfg['selection']
         )
-        os.makedirs(cfg['model']['output_dir'], exist_ok=True)
-        model_top_final.save_model(
-            os.path.join(cfg['model']['output_dir'], cfg['model']['filename'])
-        )
-        logger.info("Final model saved as %s/%s",
-                    cfg['model']['output_dir'], cfg['model']['filename'])
+
+        # 4) save the model to the path strategy expects
+        Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+        model_h.save_model(model_path)
+        logger.info(f"Horizon {h} model saved to {model_path}")
+
+        # 5) Optional SHAP-based Retraining per horizon
+        if cfg['selection']['method'] == 'shap':
+            logger.info("Retraining horizon %s using top SHAP features...", h)
+            X_top_h = X_h[top_feats_h]
+            best_params_top, tuning_path_top = run_tuning(
+                X_top_h, y_h, cfg['tuning'], cfg['model']
+            )
+            model_top_h, _, _ = run_training_pipeline(
+                X_top_h, y_h, tuning_path_top,
+                cfg['training'], cfg['model'], cfg['selection']
+            )
+            # overwrite the same file so strategy picks up SHAP model
+            model_top_h.save_model(model_path)
+            logger.info("Horizon %s SHAP-retrained model saved to %s", h, model_path)
 
 if __name__ == "__main__":
     main()
