@@ -25,7 +25,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 150
+  max_bars: 1000
 
 
 
@@ -78,14 +78,13 @@ trading_logic:
     "24": "models/xgb_h24.json"
     "48": "models/xgb_h48.json"
   max_hold_bars: 6
-  entry_threshold: 0.2
   stop_loss_atr_mult: 2.0
   horizon_weights: [0.1, 0.2, 0.3, 0.4]
   fee_rate:       0.002
   vol_window:     20
   max_position:   1
   persistence: 2
-  threshold_mult: 0.05
+  threshold_mult: 0.45
   stop_loss_atr_mult: 1.5
   take_profit_atr_mult: 2.0
 
