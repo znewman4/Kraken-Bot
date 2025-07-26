@@ -72,11 +72,17 @@ class KrakenStrategy(bt.Strategy):
             self.pnls.append(pnl)
 
     def notify_order(self, order):
+        # --- Completed executions ---
         if order.status == bt.Order.Completed:
             side = 'BUY' if order.isbuy() else 'SELL'
-            print(f"{self.datas[0].datetime.datetime(0).isoformat()} - {side} EXECUTED @ {order.executed.price:.5f} qty {order.executed.size:.6f}")
+            ts   = self.datas[0].datetime.datetime(0).isoformat()
+            print(f"{ts} – {side} EXECUTED @ {order.executed.price:.5f} qty {order.executed.size:.6f}")
+
+        # --- Any cancellations, rejections, margin failures ---
         elif order.status in (bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected):
-            print(f"{self.datas[0].datetime.datetime(0).isoformat()} - ⚠️ Order {order.Status[order.status] if hasattr(order,'Status') else order.status}")
+            ts = self.datas[0].datetime.datetime(0).isoformat()
+            status_name = order.getstatusname()
+            print(f"{ts} – ⚠️ Order {status_name}")
 
     def next(self):
         # 1) VWAP calc
@@ -86,10 +92,14 @@ class KrakenStrategy(bt.Strategy):
         vwap = sum(p * v for p, v in zip(self.tp_buffer, self.vol_buffer)) / max(sum(self.vol_buffer), 1)
 
         # 2) Make preds
-        preds = []
-        for horizon, m in self.models.items():
+        preds   = []
+        weights = self.tl_cfg.get('horizon_weights', [])
+        horizons = list(self.tl_cfg['model_paths'].keys())
+
+        for idx, horizon in enumerate(horizons):
+            m     = self.models[horizon]
             feats = self.feature_names_map[horizon]
-            row = {}
+            row   = {}
             for f in feats:
                 lf = f.lower()
                 if lf == 'sma':
@@ -102,7 +112,14 @@ class KrakenStrategy(bt.Strategy):
                     row[f] = float(getattr(self.data, f)[0])
             dfm = pd.DataFrame([row])
             preds.append(m.predict(dfm)[0])
-        exp_r = float(np.mean(preds))
+
+        # Weighted average of preds
+        w = np.array(weights[:len(preds)], dtype=float)
+        if w.sum() == 0:
+            exp_r = float(np.mean(preds))
+        else:
+            exp_r = float(np.dot(preds, w) / w.sum())
+
 
         # 3) Rolling vol & edge
         if self.closes:
@@ -142,6 +159,11 @@ class KrakenStrategy(bt.Strategy):
         pos_fac = max(min(pos_fac, self.tl_cfg['max_position']), -self.tl_cfg['max_position'])
         size_req = (self.broker.getcash() * abs(pos_fac)) / self.data.close[0]
         size = min(size_req, self.broker.getcash() / self.data.close[0])
+
+        # clamp to minimal tradable size (8 dp) and skip if too small
+        size = round(size, 8)
+        if size <= 0:
+            return
 
         # 6) orders
         stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
