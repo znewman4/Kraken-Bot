@@ -25,7 +25,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 1000
+  max_bars: 2000
 
 
 
@@ -83,6 +83,7 @@ trading_logic:
   fee_rate:       0.002
   vol_window:     20
   max_position:   1
+  min_trade_size: 0.001
   persistence: 2
   threshold_mult: 0.45
   stop_loss_atr_mult: 1.5

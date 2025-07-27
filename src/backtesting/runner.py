@@ -16,7 +16,7 @@ def run_backtest(config_path='config.yml'):
 
     config = load_config(config_path)
     cerebro = bt.Cerebro()
-    cerebro.broker.set_coc(True) 
+    cerebro.broker.set_coc(False) 
     cerebro.broker.set_shortcash(False)
 
     cerebro.addanalyzer(
@@ -71,5 +71,10 @@ def run_backtest(config_path='config.yml'):
         "real_pnl": total_real_pnl,
     }
 
+    trade_df = strat.get_trade_log_df()
+    trade_df.to_csv("trade_log.csv", index=False)   
+
 
     return metrics, stats, cerebro
+
+

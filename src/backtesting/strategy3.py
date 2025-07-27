@@ -5,6 +5,24 @@ import numpy as np
 import xgboost as xgb
 from collections import deque
 from datetime import datetime
+from dataclasses import dataclass
+
+@dataclass
+class TradeLogEntry:
+    entry_time: str
+    exit_time: str
+    entry_price: float
+    exit_price: float
+    position_size: float
+    predicted_exp_r: float
+    edge: float
+    volatility: float
+    net_pnl: float
+    pnl_per_unit: float
+    stop_hit: bool
+    take_profit_hit: bool
+    hold_time_mins: float
+
 
 class KrakenStrategy(bt.Strategy):
     params = (
@@ -17,6 +35,12 @@ class KrakenStrategy(bt.Strategy):
         self.tl_cfg     = self.cfg['trading_logic']
         self.models     = {}
         self.feature_names_map = {}
+        self.trade_log = []
+        self.open_trades = {}  # map order.ref → info
+        self.last_trade_info = None
+
+
+
 
         # Load each XGB model and remember its feature names
         for horizon, path in self.tl_cfg['model_paths'].items():
@@ -66,23 +90,57 @@ class KrakenStrategy(bt.Strategy):
         print(f"{datetime.utcnow().isoformat()} - KrakenStrategy initialized")
 
     def notify_trade(self, trade):
-        if trade.isclosed:
+        if trade.isclosed and self.last_trade_info:
             pnl = trade.pnlcomm
-            print(f"{self.datas[0].datetime.datetime(0).isoformat()} - TRADE CLOSED | Net PnL={pnl:.2f}")
+            current_dt = self.datas[0].datetime.datetime(0)
+            entry_dt = pd.to_datetime(self.last_trade_info["entry_time"])
+            hold_minutes = (current_dt - entry_dt).total_seconds() / 60
+
+            self.trade_log.append(TradeLogEntry(
+                entry_time     = self.last_trade_info["entry_time"],
+                exit_time      = current_dt.isoformat(),
+                entry_price    = self.last_trade_info["entry_price"],
+                exit_price     = trade.price,
+                position_size  = self.last_trade_info["size"],
+                predicted_exp_r= self.last_trade_info["predicted_exp_r"],
+                edge           = self.last_trade_info["edge"],
+                volatility     = self.last_trade_info["vol"],
+                net_pnl        = pnl,
+                pnl_per_unit   = pnl / self.last_trade_info["size"] if self.last_trade_info["size"] else 0.0,
+                stop_hit       = pnl < 0,
+                take_profit_hit= pnl > 0,
+                hold_time_mins = hold_minutes,
+            ))
             self.pnls.append(pnl)
+            print(f"🔍 TRADE CLOSED | Net PnL={pnl:.2f}")
+            self.last_trade_info = None
+
+
+
 
     def notify_order(self, order):
-        # --- Completed executions ---
         if order.status == bt.Order.Completed:
-            side = 'BUY' if order.isbuy() else 'SELL'
-            ts   = self.datas[0].datetime.datetime(0).isoformat()
-            print(f"{ts} – {side} EXECUTED @ {order.executed.price:.5f} qty {order.executed.size:.6f}")
+            if order.isbuy() or order.issell():
+                self.last_trade_info = {
+                    "entry_time": self.datas[0].datetime.datetime(0).isoformat(),
+                    "entry_price": order.executed.price,
+                    "size": order.executed.size,
+                    "predicted_exp_r": self.exp_returns[-1] if self.exp_returns else 0.0,
+                    "edge": self.edge_norms[-1] if self.edge_norms else 0.0,
+                    "vol": self.ret_buffer[-1] if self.ret_buffer else 0.0,
+                }
 
-        # --- Any cancellations, rejections, margin failures ---
+                side = 'BUY' if order.isbuy() else 'SELL'
+                ts   = self.datas[0].datetime.datetime(0).isoformat()
+                print(f"{ts} – {side} EXECUTED | ref={order.ref} | price={order.executed.price:.5f} | qty={order.executed.size:.6f}")
+
         elif order.status in (bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected):
             ts = self.datas[0].datetime.datetime(0).isoformat()
             status_name = order.getstatusname()
             print(f"{ts} – ⚠️ Order {status_name}")
+
+
+
 
     def next(self):
         # 1) VWAP calc
@@ -151,9 +209,13 @@ class KrakenStrategy(bt.Strategy):
         dt = self.datas[0].datetime.datetime(0)
         if not (8 <= dt.hour <= 20) or sig == 0:
             return
+        if self.position.size * sig < 0:
+            self.close()  # ensures exit before flip
+            return  # wait next bar to re-enter
         if len(self.signal_buffer) < self.signal_buffer.maxlen or not all(s == sig for s in self.signal_buffer):
             return
 
+    
         # 5) sizing
         pos_fac = (abs(edge) / max(max(self.edge_norms, default=1e-8),1e-8)) * self.tl_cfg['max_position'] * sig
         pos_fac = max(min(pos_fac, self.tl_cfg['max_position']), -self.tl_cfg['max_position'])
@@ -168,6 +230,10 @@ class KrakenStrategy(bt.Strategy):
         # 6) orders
         stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
         tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
+
+        min_trade_size = self.tl_cfg.get("min_trade_size", 0.001)
+        if size < min_trade_size:
+            return
 
         if sig == 1:
             self.buy_bracket(
@@ -199,3 +265,7 @@ class KrakenStrategy(bt.Strategy):
             'signal':     self.signals,
             'position':   positions,
         })
+    
+    def get_trade_log_df(self):
+        import pandas as pd
+        return pd.DataFrame([t.__dict__ for t in self.trade_log])

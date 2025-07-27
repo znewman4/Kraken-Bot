@@ -50,3 +50,6 @@ def run_backtest(cfg):
         "n_trades": len(real_trade_pnls),
         "trades": trade_analysis,
     }
+
+    trade_df = strat.get_trade_log_df()
+    trade_df.to_csv("trade_log.csv", index=False)

@@ -23,7 +23,6 @@ print("  Higher Sharpe = smoother, more consistent performance.")
 
 for i, (thr, stp, tp) in enumerate(combinations):
     cfg['trading_logic']['threshold_mult'] = thr
-    cfg['trading_logic']['entry_threshold'] = thr
     cfg['trading_logic']['stop_loss_atr_mult'] = stp
     cfg['trading_logic']['take_profit_atr_mult'] = tp
 
@@ -40,11 +39,6 @@ for i, (thr, stp, tp) in enumerate(combinations):
 )
         pnl = stats.get('real_pnl', 0)
         sharpe = stats.get('sharpe', None)
-
-        # Early exit filtering
-        if n_trades < 3 or pnl <= 0:
-            print(f"    ⚠️ Skipping: n_trades={n_trades}, PnL={pnl:.2f}, Sharpe={sharpe}")
-            continue
 
         print(f"    ✅ VALID | Trades: {n_trades}, PnL: {pnl:.2f}, Sharpe: {sharpe:.4f}")
 
