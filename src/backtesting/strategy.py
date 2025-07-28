@@ -52,6 +52,9 @@ class KrakenStrategy(bt.Strategy):
         self.last_trade_info = None
         self.stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
         self.tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
+        self.bar_executed = -1  # prevent same-bar double entries
+        self.orders = []        # track open bracket orders
+
 
 
         # Load each XGB model and remember its feature names
@@ -160,22 +163,32 @@ class KrakenStrategy(bt.Strategy):
                 ts   = self.datas[0].datetime.datetime(0).isoformat()
                 print(f"{ts} – {side} EXECUTED | ref={order.ref} | price={order.executed.price:.5f} | qty={order.executed.size:.6f}")
 
-        elif order.status in (bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected):
+        elif order.status in (bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Completed):
+            self.orders = []  # clear tracked bracket orders
+
             ts = self.datas[0].datetime.datetime(0).isoformat()
             status_name = order.getstatusname()
             print(f"{ts} – ⚠️ Order {status_name}")
 
 
 
-
+    
     def next(self):
-        # 1) VWAP calc
+        # --- Step 0: Prevent Same-Bar Re-entry or Overlapping Brackets ---
+        if len(self) == self.bar_executed:
+            return  # already executed on this bar
+        if self.position:
+            return  # don't open new position if one is active
+        if self.orders:
+            return  # previous bracket still open
+
+        # --- Step 1: VWAP Calculation ---
         tp = (self.data.high[0] + self.data.low[0] + self.data.close[0]) / 3.0
         self.tp_buffer.append(tp)
         self.vol_buffer.append(self.data.volume[0])
         vwap = sum(p * v for p, v in zip(self.tp_buffer, self.vol_buffer)) / max(sum(self.vol_buffer), 1)
 
-        # 2) Make predictions
+        # --- Step 2: Predict Expected Return ---
         preds = []
         weights = self.tl_cfg.get('horizon_weights', [])
         horizons = list(self.tl_cfg['model_paths'].keys())
@@ -197,11 +210,10 @@ class KrakenStrategy(bt.Strategy):
             dfm = pd.DataFrame([row])
             preds.append(m.predict(dfm)[0])
 
-        # Weighted average prediction
         w = np.array(weights[:len(preds)], dtype=float)
         exp_r = float(np.mean(preds)) if w.sum() == 0 else float(np.dot(preds, w) / w.sum())
 
-        # 3) Rolling volatility and edge
+        # --- Step 3: Compute Edge ---
         if self.closes:
             r = (self.data.close[0] - self.closes[-1]) / self.closes[-1]
             self.ret_buffer.append(r)
@@ -221,23 +233,19 @@ class KrakenStrategy(bt.Strategy):
         sig = 1 if edge >= thr else (-1 if edge <= -thr else 0)
         self.signal_buffer.append(sig)
 
-        # Track metrics
         self.exp_returns.append(exp_r)
         self.edge_norms.append(edge)
         self.thresholds.append(thr)
         self.signals.append(sig)
 
-        # 4) Signal gating
+        # --- Step 4: Gating based on signal persistence, time, position ---
         dt = self.datas[0].datetime.datetime(0)
         if not (8 <= dt.hour <= 20) or sig == 0:
-            return
-        if self.position.size * sig < 0:
-            self.close()  # exit before reversal
             return
         if len(self.signal_buffer) < self.signal_buffer.maxlen or not all(s == sig for s in self.signal_buffer):
             return
 
-        # 5) Sizing (improved logic)
+        # --- Step 5: Position Sizing ---
         recent_edges = self.edge_norms[-50:]
         edge_norm_ref = np.percentile(recent_edges, 90) if len(recent_edges) >= 10 else 1e-4
         norm_edge = abs(edge) / edge_norm_ref
@@ -249,31 +257,38 @@ class KrakenStrategy(bt.Strategy):
         size_req = (cash_available * abs(pos_fac)) / price
         max_affordable = cash_available / price
         size = min(size_req, max_affordable)
-
         size = round(size, 8)
+
         min_trade_size = self.tl_cfg.get("min_trade_size", 0.001)
         if size < min_trade_size:
             print(f"⚠️ Skipping micro-trade | size={size:.8f}, edge={edge:.5f}, norm_edge={norm_edge:.2f}")
             return
 
-        # 6) Bracket order
-        stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 1.5)
-        tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 2.0)
+        # --- Step 6: Bracket Order with Tick Buffer ---
+        stop_mult = self.tl_cfg.get('stop_loss_atr_mult', 5)
+        tp_mult   = self.tl_cfg.get('take_profit_atr_mult', 7)
+        tick_size = self.tl_cfg.get("tick_size", 0.01)
+
+        atr_val = self.atr[0]
+        stop_dist = stop_mult * atr_val
+        tp_dist   = tp_mult   * atr_val
 
         if sig == 1:
-            self.buy_bracket(
+            self.orders = self.buy_bracket(
                 size       = size,
                 price      = price,
-                stopprice  = price - stop_mult * self.atr[0],
-                limitprice = price + tp_mult   * self.atr[0],
+                stopprice  = price - stop_dist - tick_size,
+                limitprice = price + tp_dist + tick_size,
             )
         elif sig == -1:
-            self.sell_bracket(
+            self.orders = self.sell_bracket(
                 size       = size,
                 price      = price,
-                stopprice  = price + stop_mult * self.atr[0],
-                limitprice = price - tp_mult   * self.atr[0],
+                stopprice  = price + stop_dist + tick_size,
+                limitprice = price - tp_dist - tick_size,
             )
+
+
 
 
     def get_metrics(self):

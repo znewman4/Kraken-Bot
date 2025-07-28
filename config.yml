@@ -85,9 +85,10 @@ trading_logic:
   max_position:   1
   min_trade_size: 0.001
   persistence: 2
-  threshold_mult: 0.45
-  stop_loss_atr_mult: 1.5
-  take_profit_atr_mult: 2.0
+  threshold_mult: 0.2
+  stop_loss_atr_mult: 5
+  take_profit_atr_mult: 7
+  tick_size: 0.01
 
 logging:
   level: INFO
