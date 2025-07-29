@@ -7,11 +7,10 @@ from src.backtesting.runner_pnl_cv import run_backtest
 # Load base config (models already trained + paths set)
 cfg = load_config("config.yml")
 
-# New logic grid
-quantile_windows        = [20, 50, 100]
-entry_quantiles         = [0.5, 0.6, 0.7]
-min_trade_sizes         = [0.0005, 0.001, 0.005]
-threshold_multipliers   = [0.005, 0.01, 0.02, 0.05]
+quantile_windows      = [29, 50, 100, 200]
+entry_quantiles       = [0.80, 0.90, 0.95, 0.99]
+threshold_multipliers = [0.01, 0.1, 0.3, 0.5, 1.0]
+min_trade_sizes       = [0.01, 0.02, 0.05]
 
 # Build the full grid of combinations
 grid = list(itertools.product(

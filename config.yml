@@ -25,7 +25,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 3000
+  max_bars: 2000
 
 
 
@@ -83,13 +83,13 @@ trading_logic:
   vol_window:     20
   max_position:   1
   min_trade_size: 0.001
-  persistence: 1
+  persistence: 3
   threshold_mult: 0.05
   stop_loss_atr_mult: 1.5
   take_profit_atr_mult: 2
   tick_size: 0.01
-  quantile_window: 800    # shorter lookback
-  entry_quantile: 0.3     # top 40%, not just 20%
+  quantile_window: 300    # shorter lookback
+  entry_quantile: 0.2     # top 40%, not just 20%
 
 logging:
   level: INFO
