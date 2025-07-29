@@ -1,6 +1,6 @@
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategy3 import KrakenStrategy
+from src.backtesting.strategytest import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 
 def run_backtest(cfg):

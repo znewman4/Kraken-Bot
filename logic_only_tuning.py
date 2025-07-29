@@ -8,9 +8,9 @@ from src.backtesting.runner_pnl_cv import run_backtest
 cfg = load_config("config.yml")
 
 # Logic-only param sweep
-thresholds = [0.05, 0.1, 0.2]
-stops = [1.0, 1.5, 2.0]
-tps = [1.0, 2.0, 3.0]
+thresholds = [0.05, 0.1, 0.2, 0.4]
+stops = [1.0, 1.5, 2.0, 4.0]
+tps = [1.0, 2.0, 3.0, 6.0]
 
 combinations = list(itertools.product(thresholds, stops, tps))
 

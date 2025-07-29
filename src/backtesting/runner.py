@@ -4,7 +4,7 @@
 
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategy import KrakenStrategy
+from src.backtesting.strategytest import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
 
@@ -17,7 +17,7 @@ def run_backtest(config_path='config.yml'):
     config = load_config(config_path)
     cerebro = bt.Cerebro()
     cerebro.broker.set_coc(False) 
-    cerebro.broker.set_shortcash(False)
+    cerebro.broker.set_shortcash(True)
 
     cerebro.addanalyzer(
         bt.analyzers.SharpeRatio,
@@ -45,7 +45,11 @@ def run_backtest(config_path='config.yml'):
     cerebro.adddata(data)
 
     cerebro.addstrategy(KrakenStrategy, config=config)
-    cerebro.broker.setcommission(commission=config['trading_logic']['fee_rate'])
+    cerebro.broker.setcommission(
+    commission=config['trading_logic']['fee_rate'],
+    leverage=1.0
+)
+
     cerebro.broker.set_slippage_perc(
         perc=config['backtest'].get('slippage_perc', 0.0005),
         slip_open=True, slip_limit=True, slip_match=True
