@@ -1,12 +1,12 @@
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategytest import KrakenStrategy
+from src.backtesting.strategy import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 
 def run_backtest(cfg):
     cerebro = bt.Cerebro()
-    cerebro.broker.set_coc(True)
-    cerebro.broker.set_shortcash(False)
+    cerebro.broker.set_coc(False)
+    cerebro.broker.set_shortcash(True)
 
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe", timeframe=bt.TimeFrame.Minutes)
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")

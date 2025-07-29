@@ -1,4 +1,4 @@
-# src/backtesting/strategy3.py
+# src/backtesting/strategytest.py
 import backtrader as bt
 import pandas as pd
 import numpy as np
@@ -89,7 +89,15 @@ class KrakenStrategy(bt.Strategy):
         print(f"{datetime.utcnow().isoformat()} - KrakenStrategy initialized")
 
     def notify_order(self, order):
-        if order.status == bt.Order.Completed and (order.isbuy() or order.issell()):
+        print(f"ORDER NOTIFY: ref={order.ref}, status={order.getstatusname()}, "
+            f"type={'BUY' if order.isbuy() else 'SELL'}, "
+            f"created_price={order.created.price}, executed_price={order.executed.price}, size={order.created.size}")
+
+        # Clear orders whenever they stop being active (not just completed):
+        if order.status in [order.Completed, order.Canceled, order.Margin, order.Rejected]:
+            self.orders = []  # THIS IS CRITICAL TO AVOID PERPETUAL BLOCKS
+
+        if order.status == order.Completed and (order.isbuy() or order.issell()):
             # record entry details
             self.entry_bar = len(self)
             self.last_trade_info = {
@@ -146,119 +154,146 @@ class KrakenStrategy(bt.Strategy):
 
     def next(self):
         dt = self.data.datetime.datetime(0)
-        print(f"BAR {len(self)} @ {dt.hour}: computing edge/threshold/sig")
+        print(f"\n📌 BAR {len(self)} | Timestamp: {dt}")
 
-        # 1) timed exit
+        # 1) Timed exit logic
         if self.position and self.entry_bar is not None:
-            if len(self) - self.entry_bar >= self.max_hold_bars:
-                print(f"{dt.isoformat()} – timed exit after {self.max_hold_bars} bars")
+            bars_held = len(self) - self.entry_bar
+            print(f"🕒 Checking timed exit: bars held = {bars_held}, max_hold_bars = {self.max_hold_bars}")
+            if bars_held >= self.max_hold_bars:
+                print(f"🚪 Exiting position due to timed exit after {bars_held} bars")
                 for o in list(self.orders):
                     self.cancel(o)
                 self.orders = []
                 self.close()
                 return
 
-        # 2) skip if busy
-        if self.position or self.orders:
+        # 2) Skip if busy
+        if self.position:
+            print("⛔️ Skipping next(), already in position.")
             return
 
-        # 3) VWAP
+        if self.orders:
+            print("⛔️ Skipping next(), open orders pending.")
+            return
+
+        # 3) Compute VWAP
         tp = (self.data.high[0] + self.data.low[0] + self.data.close[0]) / 3
         self.tp_buffer.append(tp)
         self.vol_buffer.append(self.data.volume[0])
-        vwap = sum(p*v for p,v in zip(self.tp_buffer, self.vol_buffer)) / max(sum(self.vol_buffer),1)
+        vwap = sum(p*v for p,v in zip(self.tp_buffer, self.vol_buffer)) / max(sum(self.vol_buffer), 1)
+        print(f"📉 VWAP calculated: {vwap:.4f}")
 
-        # 4) predictions
+        # 4) Predictions
         preds = []
-        for h,m in self.models.items():
+        for h, m in self.models.items():
             row = {}
             for f in self.feature_names[h]:
                 lf = f.lower()
-                if lf == 'sma':   row[f] = float(self.sma[0])
+                if lf == 'sma': row[f] = float(self.sma[0])
                 elif lf == 'rsi': row[f] = float(self.rsi[0])
-                elif lf == 'vwap':row[f] = float(vwap)
-                else:             row[f] = float(getattr(self.data,f)[0])
-            preds.append(m.predict(pd.DataFrame([row]))[0])
-        w = np.array(self.tl.get('horizon_weights',[]),dtype=float)[:len(preds)]
-        exp_r = float(np.dot(preds,w)/w.sum()) if w.sum() else float(np.mean(preds))
+                elif lf == 'vwap': row[f] = float(vwap)
+                else: row[f] = float(getattr(self.data, f)[0])
+            pred = m.predict(pd.DataFrame([row]))[0]
+            preds.append(pred)
+            print(f"🔮 Prediction (horizon {h}): {pred:.6f}")
 
-        # 5) edge & signal
+        weights = np.array(self.tl.get('horizon_weights', []), dtype=float)[:len(preds)]
+        exp_r = float(np.dot(preds, weights)/weights.sum()) if weights.sum() else float(np.mean(preds))
+        print(f"💡 Weighted expected return: {exp_r:.6f}")
+
+        # 5) Edge & Signal
         if self.closes:
             r = (self.data.close[0] - self.closes[-1]) / self.closes[-1]
             self.ret_buffer.append(r)
         self.closes.append(self.data.close[0])
 
-        vol = pd.Series(self.ret_buffer[-self.vol_window:]).std() if len(self.ret_buffer)>=self.vol_window else np.nan
+        vol = pd.Series(self.ret_buffer[-self.vol_window:]).std() if len(self.ret_buffer) >= self.vol_window else np.nan
         if vol > 0:
             edge = exp_r / vol
-            thr  = (self.fee_rate * self.threshold_mult) / vol
+            thr = (self.fee_rate * self.threshold_mult) / vol
         else:
             edge, thr = 0.0, float('inf')
 
         sig = 1 if edge >= thr else (-1 if edge <= -thr else 0)
+
+        print(f"📐 Calculated edge: {edge:.4f}, Threshold: {thr:.4f}, Signal: {sig}")
+
         self.edge_norms.append(edge)
         self.thresholds.append(thr)
         self.exp_returns.append(exp_r)
         self.signals.append(sig)
         self.signal_buffer.append(sig)
 
-        # DEBUG summary
-        print(f"[DBG] bar={len(self)} sig={sig} edge={edge:.4f} thr={thr:.4f} exp_r={exp_r:.6f}")
-
-        # # 6) gating & quantile filter
-        # if not (8 <= dt.hour <= 20):
-        #     print("  ↳ DBG: blocked by time-of-day")
-        #     return
+        # 6) Check signal
         if sig == 0:
-            print("  ↳ DBG: blocked because sig==0")
+            print("🚫 Trade blocked: Signal = 0")
             return
+
+        # 7) Check persistence
         if len(self.signal_buffer) < self.signal_buffer.maxlen or not all(s == sig for s in self.signal_buffer):
-            print("  ↳ DBG: blocked by persistence")
+            print(f"🔄 Trade blocked: Signal persistence failed ({list(self.signal_buffer)})")
             return
+
+        # 8) Quantile filtering
         if len(self.exp_returns) >= self.quantile_window:
             hist = np.array(self.exp_returns[-self.quantile_window:])
             q = self.entry_quantile
-            if sig == 1 and exp_r < np.quantile(hist, q):
-                print(f"  ↳ DBG: blocked by quantile long ({exp_r:.4f} < Q{q:.2f}={np.quantile(hist,q):.4f})")
+            long_threshold = np.quantile(hist, q)
+            short_threshold = np.quantile(hist, 1 - q)
+
+            if sig == 1 and exp_r < long_threshold:
+                print(f"📉 Trade blocked: Long quantile gating failed (exp_r={exp_r:.4f} < threshold={long_threshold:.4f})")
                 return
-            if sig == -1 and exp_r > np.quantile(hist, 1-q):
-                print(f"  ↳ DBG: blocked by quantile short ({exp_r:.4f} > Q{1-q:.2f}={np.quantile(hist,1-q):.4f})")
+            if sig == -1 and exp_r > short_threshold:
+                print(f"📈 Trade blocked: Short quantile gating failed (exp_r={exp_r:.4f} > threshold={short_threshold:.4f})")
                 return
 
-        # 7) position sizing
-        ref       = np.percentile(self.edge_norms[-50:], 90) if len(self.edge_norms) >= 50 else 1e-4
-        size_fac  = min(abs(edge)/ref, 1.0) * self.max_position * sig
-        cash      = self.broker.getcash()
-        price     = self.data.close[0]
-        size      = min(round((cash * abs(size_fac)) / price, 8), cash/price)
-        print(f"  ↳ DBG: sizing -> ref={ref:.4f}, size_fac={size_fac:.4f}, size={size:.6f}")
+        # 9) Position sizing
+        ref = np.percentile(self.edge_norms[-50:], 90) if len(self.edge_norms) >= 50 else 1e-4
+        size_fac = min(abs(edge)/ref, 1.0) * self.max_position * sig
+        cash = self.broker.getcash()
+        price = self.data.close[0]
+        size = min(round((cash * abs(size_fac)) / price, 8), cash/price)
+
+        print(f"📏 Position sizing: ref={ref:.4f}, size_fac={size_fac:.4f}, size={size:.6f}")
+
         if size < self.min_trade_size:
-            print(f"  ↳ DBG: blocked by min_trade_size (size={size:.6f} < min={self.min_trade_size})")
+            print(f"🚫 Trade blocked: size ({size:.6f}) below min_trade_size ({self.min_trade_size})")
             return
 
-        # 8) entry bracket
-        atr       = self.atr[0]
-        stop_dist = self.stop_mult * atr
-        tp_dist   = self.tp_mult   * atr
-        tck       = self.tick_size
 
-        print(f"  ↳ DBG: placing bracket sig={sig} size={size:.6f} price={price:.2f}")
+        # 10) Bracket order placement
+        atr = self.atr[0]
+        stop_dist = self.stop_mult * atr
+        tp_dist = self.tp_mult * atr
+        tick = self.tick_size
+
+        # Corrected Debug Diagnostics:
+        if sig == 1:
+            print(f"Bracket Prices (Long) | Market Entry: {price:.2f}, Stop Loss: {price - stop_dist - tick:.2f}, Take Profit: {price + tp_dist + tick:.2f}")
+        else:
+            print(f"Bracket Prices (Short) | Market Entry: {price:.2f}, Stop Loss: {price + stop_dist + tick:.2f}, Take Profit: {price - tp_dist - tick:.2f}")
+
+        print(f"🎯 Placing MARKET bracket order: sig={sig}, size={size:.6f}, current_price={price:.2f}, stop_dist={stop_dist:.4f}, tp_dist={tp_dist:.4f}")
+
+        # Corrected MARKET bracket orders (immediate execution at next open price)
         if sig == 1:
             self.orders = self.buy_bracket(
-                size       = size,
-                price      = price,
-                stopprice  = price - stop_dist - tck,
-                limitprice = price + tp_dist   + tck,
+                size=size,
+                stopprice=price - stop_dist - tick,
+                limitprice=price + tp_dist + tick,
             )
         else:
             self.orders = self.sell_bracket(
-                size       = size,
-                price      = price,
-                stopprice  = price + stop_dist + tck,
-                limitprice = price - tp_dist   - tck,
+                size=size,
+                stopprice=price + stop_dist + tick,
+                limitprice=price - tp_dist - tick,
             )
-        print(f"  ↳ DBG: orders = {self.orders}")
+
         self.bar_executed = len(self)
+        print(f"✅ Bracket order placed successfully!")
+
 
     def get_metrics(self):
         import pandas as pd
