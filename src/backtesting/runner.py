@@ -4,7 +4,7 @@
 
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategytest import KrakenStrategy
+from src.backtesting.strategy import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
 

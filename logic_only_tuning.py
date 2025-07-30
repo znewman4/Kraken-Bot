@@ -4,62 +4,52 @@ import numpy as np
 from config_loader import load_config
 from src.backtesting.runner_pnl_cv import run_backtest
 
-# Load base config with trained models already included
+# Load base config
 cfg = load_config("config.yml")
+tl  = cfg['trading_logic']
 
-# Logic-only param sweep
-thresholds = [0.05, 0.1, 0.2, 0.4]
-stops = [1.0, 1.5, 2.0, 4.0]
-tps = [1.0, 2.0, 3.0, 6.0]
+# Defaults from your config
+default_qw     = tl['quantile_window']
+default_eq     = tl['entry_quantile']
+default_mts    = tl['min_trade_size']
 
-combinations = list(itertools.product(thresholds, stops, tps))
+# Two-parameter grid
+hold_bars       = [29, 35, 48]               # your key horizons
+threshold_mults = [0.01, 0.1, 0.3, 0.5, 1.0] # your main filter
+
+grid = list(itertools.product(hold_bars, threshold_mults))
 
 results = []
+for i, (hbars, thr_mult) in enumerate(grid, 1):
+    tl['max_hold_bars']  = hbars
+    tl['threshold_mult'] = thr_mult
+    # keep others fixed:
+    tl['quantile_window'] = default_qw
+    tl['entry_quantile']  = default_eq
+    tl['min_trade_size']  = default_mts
 
-print("🔍 Sharpe Ratio Explanation:")
-print("  The Sharpe ratio measures return per unit of volatility (risk).")
-print("  Sharpe = average(returns) / std(returns) * sqrt(N)")
-print("  Higher Sharpe = smoother, more consistent performance.")
-
-for i, (thr, stp, tp) in enumerate(combinations):
-    cfg['trading_logic']['threshold_mult'] = thr
-    cfg['trading_logic']['stop_loss_atr_mult'] = stp
-    cfg['trading_logic']['take_profit_atr_mult'] = tp
-
-    print(f"→ [{i+1}/{len(combinations)}] threshold={thr}, stop={stp}, tp={tp}")
-
+    print(f"→ [{i}/{len(grid)}] hold={hbars}, thresh={thr_mult}")
     try:
         metrics, stats = run_backtest(cfg)
-
-        trades = stats.get('trades', {})
-        n_trades = (
-            trades.get('total', {}).get('total', 0)
-            if isinstance(trades, dict)
-            else 0
-)
-        pnl = stats.get('real_pnl', 0)
-        sharpe = stats.get('sharpe', None)
-
-        print(f"    ✅ VALID | Trades: {n_trades}, PnL: {pnl:.2f}, Sharpe: {sharpe:.4f}")
+        trades   = stats.get('trades', {}).get('total',{}).get('total', 0)
+        real_pnl = stats.get('real_pnl', 0.0)
+        sharpe   = stats.get('sharpe', np.nan)
+        print(f"    ✅ trades={trades}, PnL={real_pnl:.1f}, Sharpe={sharpe:.3f}")
 
         results.append({
-            'threshold_mult': thr,
-            'stop_mult': stp,
-            'tp_mult': tp,
-            'total_pnl': pnl,
-            'sharpe': sharpe,
-            'n_trades': n_trades
+            'hold_bars':    hbars,
+            'threshold':    thr_mult,
+            'n_trades':     trades,
+            'total_pnl':    real_pnl,
+            'sharpe':       sharpe,
         })
 
     except Exception as e:
-        print(f"    ❌ Error during backtest: {e}")
-        continue
+        print(f"    ❌ error: {e}")
 
-# Display results
 df = pd.DataFrame(results)
-
 if df.empty:
-    print("\\n⚠️ No valid configs passed the filters or all backtests failed.")
+    print("⚠️ No valid runs")
 else:
-    print("\\n=== Valid Configs Sorted by PnL ===")
-    print(df.sort_values(by="total_pnl", ascending=False).to_string(index=False))
+    print("\n=== Top by Sharpe ===")
+    print(df.sort_values('sharpe', ascending=False).head(10).to_string(index=False))
