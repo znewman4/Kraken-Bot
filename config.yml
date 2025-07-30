@@ -83,13 +83,13 @@ trading_logic:
   vol_window:     30
   max_position:   1
   min_trade_size: 0.01
-  persistence: 4
+  persistence: 2
   threshold_mult: 0.5
   stop_loss_atr_mult: 4.0
   take_profit_atr_mult: 6.0
   tick_size: 0.01
-  quantile_window: 500    # shorter lookback
-  entry_quantile: 0.95     
+  quantile_window: 300  # shorter lookback
+  entry_quantile: 0.6    
 
 logging:
   level: INFO

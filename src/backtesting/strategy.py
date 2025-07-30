@@ -170,7 +170,7 @@ class KrakenStrategy(bt.Strategy):
 
     def next(self):
         dt = self.data.datetime.datetime(0)
-        print(f"\n📌 BAR {len(self)} | Timestamp: {dt}")
+        #print(f"\n📌 BAR {len(self)} | Timestamp: {dt}")
 
         # — Step 0: clear stale bracket refs if no position —
         if self.orders and not self.position:
@@ -179,7 +179,7 @@ class KrakenStrategy(bt.Strategy):
         # — Step 1: timed exit if held too long —
         if self.position and self.entry_bar is not None:
             bars_held = len(self) - self.entry_bar
-            print(f"🕒 Checking timed exit: bars held = {bars_held}, max_hold_bars = {self.max_hold_bars}")
+            #print(f"🕒 Checking timed exit: bars held = {bars_held}, max_hold_bars = {self.max_hold_bars}")
             if bars_held >= self.max_hold_bars:
                 print(f"🚪 Exiting position due to timed exit after {bars_held} bars")
                 for o in list(self.orders):
@@ -201,7 +201,7 @@ class KrakenStrategy(bt.Strategy):
         self.tp_buffer.append(tp)
         self.vol_buffer.append(self.data.volume[0])
         vwap = sum(p * v for p, v in zip(self.tp_buffer, self.vol_buffer)) / max(sum(self.vol_buffer), 1)
-        print(f"📉 VWAP calculated: {vwap:.4f}")
+        #print(f"📉 VWAP calculated: {vwap:.4f}")
 
         # — Step 4: model predictions —
         preds = []
@@ -219,7 +219,7 @@ class KrakenStrategy(bt.Strategy):
                     row[f] = float(getattr(self.data, f)[0])
             pred = m.predict(pd.DataFrame([row]))[0]
             preds.append(pred)
-            print(f"🔮 Prediction (horizon {h}): {pred:.6f}")
+            #print(f"🔮 Prediction (horizon {h}): {pred:.6f}")
         weights = np.array(self.tl.get('horizon_weights', []), dtype=float)[:len(preds)]
         exp_r = float(np.dot(preds, weights) / weights.sum()) if weights.sum() else float(np.mean(preds))
         print(f"💡 Weighted expected return: {exp_r:.6f}")
