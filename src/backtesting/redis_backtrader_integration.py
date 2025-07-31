@@ -16,6 +16,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import redis
+from collections import deque
 import json
 import pandas as pd
 import numpy as np
@@ -25,6 +26,10 @@ from datetime import datetime
 from xgboost import XGBRegressor
 from config_loader import load_config
 import src.technical_engineering as te
+
+# at top of redis_backtrader_integration.py, below imports
+HISTORY = deque(maxlen=100)
+
 
 # ------------------------------
 # 1) Configuration & Model Loading
@@ -54,6 +59,7 @@ for h_str, path in MODEL_PATHS.items():
 # 2) Producer: feature & signal computation
 # ------------------------------
 
+
 def publish_bar(raw_bar: dict):
     """
     raw_bar must include at least:
@@ -67,15 +73,19 @@ def publish_bar(raw_bar: dict):
       5. Push all fields to Redis stream.
     """
     # 1) Base DataFrame
-    df_bar = pd.DataFrame([raw_bar])
+    HISTORY.append(raw_bar)
+    if len(HISTORY) < 50:      # or whatever your longest lookback is
+        return                 # skip until you have enough bars
+    df_hist = pd.DataFrame(HISTORY)
+    # now safe to call add_technical_indicators(df_hist, …)
 
     # 2) Technical indicators
-    df_feats = te.add_technical_indicators(df_bar, cfg['features'])
-    # 3) Return features
+    df_feats = te.add_technical_indicators(df_hist, cfg['features'])
     df_feats = te.add_return_features(df_feats, cfg['features'])
-
-    # Extract features
     feats = df_feats.iloc[-1].to_dict()
+
+    # models expect 'count' among the features
+    feats['count'] = raw_bar.get('count', np.nan)
 
     # 4) Model predictions
     exp_rs = {}
@@ -89,7 +99,10 @@ def publish_bar(raw_bar: dict):
     for h, val in exp_rs.items():
         message[f'exp_return_{h}'] = val
     fields = {k: json.dumps(v) for k, v in message.items()}
-    redis_client.xadd(STREAM_KEY, fields)
+    #print(f"[DEBUG] XADD → stream: {STREAM_KEY}; sample fields: {list(message.items())[:3]}")
+    entry_id = redis_client.xadd(STREAM_KEY, fields)
+    #print(f"[DEBUG] XADD returned entry ID: {entry_id}")
+
 
 
 def publish_from_csv(csv_path=None, limit=None):
@@ -114,6 +127,8 @@ def publish_from_csv(csv_path=None, limit=None):
             'low':    row['low'],
             'close':  row['close'],
             'volume': row['volume'],
+            'count':  row.get('count', np.nan),   # ← ADD THIS LINE
+
         }
         publish_bar(raw_bar)
 
