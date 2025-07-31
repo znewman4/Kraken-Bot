@@ -102,4 +102,12 @@ logging:
       filename: 'logs/app.log'
 
 
+stream:
+  host: localhost
+  port: 6379
+  db: 0
+  feature_stream: feature_stream
+
+
+
 

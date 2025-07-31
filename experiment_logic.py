@@ -118,50 +118,13 @@ while i < len(df):
             i += 1
             continue
 
-     # --- Simulate Bracket Stop/TP (Non-overlapping) ---
+    # --- Simulate Hold to Horizon (Non-overlapping) ---
     if i + H < len(df):
         entry = row['close']
-        atr   = row['atr']
-        stop  = entry - stop_mult * atr * trade_sig   # For long: entry - stop_mult*ATR
-        tp    = entry + tp_mult * atr * trade_sig     # For long: entry + tp_mult*ATR
-
-        # Loop over each bar in [i+1, i+H] to check for stop/TP hit
-        exit_idx = i + H
-        stop_hit, tp_hit = False, False
-        exit_price = df.iloc[exit_idx]['close']
-        for j in range(i+1, i+H+1):
-            if j >= len(df):
-                break
-            high = df.iloc[j]['high']
-            low  = df.iloc[j]['low']
-
-            if trade_sig == 1:
-                # LONG: Stop = below, TP = above
-                if low <= stop:
-                    stop_hit = True
-                    exit_idx = j
-                    exit_price = stop
-                    break
-                if high >= tp:
-                    tp_hit = True
-                    exit_idx = j
-                    exit_price = tp
-                    break
-            elif trade_sig == -1:
-                # SHORT: Stop = above, TP = below
-                if high >= stop:
-                    stop_hit = True
-                    exit_idx = j
-                    exit_price = stop
-                    break
-                if low <= tp:
-                    tp_hit = True
-                    exit_idx = j
-                    exit_price = tp
-                    break
-
-        pnl = (exit_price - entry) / entry * trade_sig
-        hold_time = exit_idx - i
+        exit_ = df.iloc[i+H]['close']
+        pnl = (exit_ - entry) / entry * trade_sig
+        hold_time = H
+        stop_hit, tp_hit = False, False  # No stops used
         results.append({
             'entry_time': row['time'],
             'predicted_exp_r': exp_r,
@@ -172,7 +135,7 @@ while i < len(df):
             'edge': edge,
             'volatility': row[vol_col]
         })
-        i = exit_idx  # Jump to exit bar for non-overlapping
+        i += H  # Skip forward H bars for non-overlapping
     else:
         break
 
