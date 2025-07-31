@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 import redis
 from collections import deque
 import json
+from queue import Queue, Empty
 import pandas as pd
 import numpy as np
 import backtrader as bt
@@ -116,7 +117,8 @@ def publish_from_csv(csv_path=None, limit=None):
         csv_path = cfg['data']['feature_data_path']
 
     df = pd.read_csv(csv_path, parse_dates=['time'])
-    if limit:
+    print(f"Loaded CSV rows: {len(df)}")
+    if limit is not None:
         df = df.head(limit)
 
     for idx, row in df.iterrows():
@@ -145,47 +147,67 @@ class RedisFeatureFeed(bt.feed.DataBase):
     )
 
     def __init__(self):
+        super().__init__()
         self.redis = redis.Redis(host=self.p.host, port=self.p.port, db=self.p.db)
         self.last_id = '0-0'
-        self.buffer = []
+        self.buffer = Queue()
         threading.Thread(target=self._reader, daemon=True).start()
+
 
     def _reader(self):
         while True:
-            resp = self.redis.xread({self.p.stream_key: self.last_id}, block=500, count=50)
+            resp = self.redis.xread(
+                {self.p.stream_key: self.last_id},
+                block=500,   # milliseconds
+                count=50
+            )
             if not resp:
                 continue
+
             for _, msgs in resp:
                 for mid, data in msgs:
-                    entry = {k.decode(): json.loads(v.decode()) for k, v in data.items()}
-                    self.buffer.append(entry)
+                    # exactly your old “entry” logic from redis_backtrader_integration.py
+                    entry = {
+                        k.decode(): json.loads(v.decode())
+                        for k, v in data.items()
+                    }
+                    self.buffer.put(entry)          # thread-safe
                     self.last_id = mid.decode()
 
     def _load(self):
-        if not self.buffer:
-            return None
-        fb = self.buffer.pop(0)
-        dt = bt.date2num(pd.to_datetime(fb['time']))
+        # 1) Wait until the reader thread gives us a bar
+        while True:
+            try:
+                fb = self.buffer.get(timeout=1)  # wait up to 1s
+                break
+            except Empty:
+                # queue empty → keep waiting, don’t return None
+                continue     
 
+        # 1) Timestamp → matplotlib float date
+        dt = bt.date2num(pd.to_datetime(fb['time']))
         vals = [dt]
-        # OHLCV
-        for fld in ['open','high','low','close','volume']:
+
+        # 2) OHLCV
+        for fld in ['open', 'high', 'low', 'close', 'volume']:
             vals.append(fb[fld])
-        # All features
-        # derive feature list once
-        df_tmp = te.add_return_features(
-            te.add_technical_indicators(
-                pd.DataFrame([fb]), cfg['features']),
-            cfg['features'])
-        for col in df_tmp.columns:
-            if col in ['time','open','high','low','close','volume']:
-                continue
-            vals.append(fb.get(col, np.nan))
-        # exp_return_<h>
+
+        # 3) All other precomputed features (exclude OHLCV & exp_return_<h>)
+        feature_keys = [
+            k for k in fb.keys()
+            if k not in {'time', 'open', 'high', 'low', 'close', 'volume'}
+               and not k.startswith('exp_return_')
+        ]
+        feature_keys.sort()  # ensure stable column order
+        for k in feature_keys:
+            vals.append(fb.get(k, np.nan))
+
+        # 4) Append exp_return_<h> in sorted-horizon order
         for h in sorted(MODELS.keys()):
             vals.append(fb.get(f'exp_return_{h}', np.nan))
 
         return vals
+
 
     @classmethod
     def getlinealiases(cls):

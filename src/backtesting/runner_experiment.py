@@ -67,16 +67,19 @@ def run_experiment():
     # 2) Populate Redis stream from CSV
     #    limit can be set in cfg['backtest']['max_bars'] or omitted for full history
     max_bars = cfg['backtest'].get('max_bars')
-    publish_from_csv(limit=max_bars)
-    # Diagnostic: print sample of the Redis stream to verify data ingestion
+
+    redis_client.delete(STREAM_KEY)
+
+    publish_from_csv(limit=None)
+    # ▶︎ DIAGNOSTIC: how many entries are in Redis?
+    total_len = redis_client.xlen(STREAM_KEY)
+    print(f"Total stream length: {total_len}")
+
+    # 3) Sample the first few entries for sanity
     print("=== Redis Stream Sample (first 5 entries) ===")
-    try:
-        # using redis_client and STREAM_KEY imported above
-        sample = redis_client.xrange(STREAM_KEY, count=5)
-        for entry in sample:
-            print(entry)
-    except Exception as e:
-        print(f"Failed to fetch stream sample: {e}")
+    sample = redis_client.xrange(STREAM_KEY, count=5)
+    for entry in sample:
+        print(entry)
 
     # 6) Add the experiment strategy
     cerebro.addstrategy(ExperimentStrategy, config=cfg)
