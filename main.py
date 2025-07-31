@@ -63,8 +63,8 @@ def main():
 
     df = add_technical_indicators(df, cfg['features'])
     df = add_return_features(df, cfg['features'])
-    if cfg['features'].get('drop_na', True):
-        df.dropna(inplace=True)
+    df.to_csv(proc_path, index=False)
+    df_model = df.dropna()  # only for training
 
     proc_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(proc_path)

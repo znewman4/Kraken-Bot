@@ -70,7 +70,12 @@ def run_experiment():
 
     redis_client.delete(STREAM_KEY)
 
-    publish_from_csv(limit=None)
+    publish_from_csv(limit=200)
+    data.done = True   
+
+    data_feed = data  # the RedisFeatureFeed instance you added to Cerebro
+    data_feed.buffer.put(None)
+
     # ▶︎ DIAGNOSTIC: how many entries are in Redis?
     total_len = redis_client.xlen(STREAM_KEY)
     print(f"Total stream length: {total_len}")

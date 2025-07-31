@@ -14,10 +14,11 @@
 import sys, os
 # ensure repo root is on PYTHONPATH so config_loader & technical_engineering can be found
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
+from queue import Empty
 import redis
 from collections import deque
 import json
+from datetime import datetime
 from queue import Queue, Empty
 import pandas as pd
 import numpy as np
@@ -151,6 +152,7 @@ class RedisFeatureFeed(bt.feed.DataBase):
         self.redis = redis.Redis(host=self.p.host, port=self.p.port, db=self.p.db)
         self.last_id = '0-0'
         self.buffer = Queue()
+        self.done = False
         threading.Thread(target=self._reader, daemon=True).start()
 
 
@@ -174,18 +176,30 @@ class RedisFeatureFeed(bt.feed.DataBase):
                     self.buffer.put(entry)          # thread-safe
                     self.last_id = mid.decode()
 
+
+
     def _load(self):
-        # 1) Wait until the reader thread gives us a bar
         while True:
             try:
-                fb = self.buffer.get(timeout=1)  # wait up to 1s
+                fb = self.buffer.get(timeout=1)
+                if fb is None:        # <--- ADD THIS CHECK!
+                    if self.done:
+                        return None
+                    else:
+                        continue      # wait for real data
                 break
             except Empty:
-                # queue empty → keep waiting, don’t return None
-                continue     
+                if self.done:
+                    return None
+                continue
+
+        # … otherwise format & return vals as before …
+  
 
         # 1) Timestamp → matplotlib float date
-        dt = bt.date2num(pd.to_datetime(fb['time']))
+        dt = bt.date2num(
+            datetime.fromisoformat(fb['time'])
+        )
         vals = [dt]
 
         # 2) OHLCV
