@@ -30,7 +30,7 @@ def run_experiment():
     cerebro.broker.set_shortcash(True)   # allow shorting
 
     # 3) Broker settings: commission, slippage, starting cash
-    fee = cfg['trading_logic']['fee_rate']
+    fee = cfg['backtest']['commission']
     cerebro.broker.setcommission(commission=fee, leverage=1.0)
     slippage = cfg['backtest'].get('slippage_perc', 0.0005)
     cerebro.broker.set_slippage_perc(

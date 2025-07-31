@@ -898,3 +898,9 @@ ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
 2025-07-31 12:13:58,158 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
 2025-07-31 12:13:58,159 [__main__] INFO: Retraining horizon 48 using top SHAP features...
 2025-07-31 12:14:02,602 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
+2025-07-31 12:36:59,744 [__main__] INFO: Loaded config, starting up
+2025-07-31 12:36:59,819 [src.data_loading] INFO: Fetching bars since 2025-07-31 06:25:00 (+1ms)
+2025-07-31 12:37:02,510 [src.data_loading] INFO: Appended 5 rows up to 2025-07-31 06:50:00 (total 7042 rows)
+2025-07-31 12:37:02,778 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-07-31 12:37:17,165 [__main__] INFO: Horizon 1 model saved to models/xgb_h1.json
+2025-07-31 12:37:17,166 [__main__] INFO: Retraining horizon 1 using top SHAP features...
