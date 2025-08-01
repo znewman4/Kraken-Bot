@@ -197,9 +197,8 @@ class RedisFeatureFeed(bt.feed.DataBase):
   
 
         # 1) Timestamp → matplotlib float date
-        dt = bt.date2num(
-            datetime.fromisoformat(fb['time'])
-        )
+        dt = bt.date2num(pd.to_datetime(fb['time']))
+
         vals = [dt]
 
         # 2) OHLCV

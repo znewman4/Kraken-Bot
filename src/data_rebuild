@@ -1,0 +1,101 @@
+# import pandas as pd
+# import pandas_ta as ta
+# import numpy as np
+
+
+# """
+# Loads raw OHLCV CSV, recomputes all features uniformly,
+# and saves full engineered data CSV overwriting previous versions.
+# """
+# # Load raw OHLCV
+# df = pd.read_csv('data/raw/btc_ohlcv_5min_raw.csv', parse_dates=['time'])
+
+# # Sort and set index
+# df = df.sort_values('time').reset_index(drop=True)
+# df.set_index('time', inplace=True)                  # set time as index
+
+# # Technical indicators
+# df['ema_10'] = ta.ema(df['close'], length=10)
+# df['sma_10'] = ta.sma(df['close'], length=10)
+# df['rsi_14'] = ta.rsi(df['close'], length=14)
+
+# macd = ta.macd(df['close'], fast=12, slow=26, signal=9)
+# df = df.join(macd)
+
+# bb = ta.bbands(df['close'], length=20, std=2)
+# df = df.join(bb)
+
+# df['vwap'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
+# df['atr_14'] = ta.atr(df['high'], df['low'], df['close'], length=14)
+
+# if 'count' in df.columns:
+#     df['count'] = df['count'].fillna(0)
+
+# # Return features
+# df['log_return'] = np.log(df['close'] / df['close'].shift(1)).where(lambda x: x > 0)
+# df['log_return_1'] = df['log_return'].shift(1)
+# df['log_return_5'] = df['log_return'].rolling(window=5).sum().shift(1)
+# df['volatility_5'] = df['log_return'].rolling(window=5).std().shift(1)
+
+# # Save engineered data overwriting previous
+# df.to_csv('data/processed/btc_ohlcv_5min_engineered.csv', index=True)
+# print(f"Engineered data rebuilt and saved to 'data/processed/btc_ohlcv_5min_engineered.csv'")
+
+# # Example usage:
+# # rebuild_engineered_data('data/raw/btc_ohlcv_5min_raw.csv', 'data/processed/btc_ohlcv_5min_engineered.csv')
+
+
+import pandas as pd
+
+# # Paths to your CSV files
+# engineered_csv = 'data/processed/btc_ohlcv_5min_engineered.csv'
+# raw_csv = 'data/raw/btc_ohlcv_5min_raw.csv'
+
+# # Load data
+# df_eng = pd.read_csv(engineered_csv, parse_dates=['time'])
+# df_raw = pd.read_csv(raw_csv, parse_dates=['time'])
+
+# # Find all rows in engineered data with any NaN
+# nan_mask = df_eng.isna().any(axis=1)
+# nan_rows = df_eng.loc[nan_mask, ['time'] + list(df_eng.columns[df_eng.isna().any()])]
+
+# print(f"Total rows with NaNs: {nan_mask.sum()}\n")
+# print("First 10 rows with NaNs:")
+# print(nan_rows.head(10))
+
+# # Print timestamps where NaNs start for each column
+# for col in df_eng.columns:
+#     if df_eng[col].isna().any():
+#         first_nan = df_eng.loc[df_eng[col].isna(), 'time'].min()
+#         print(f"Column '{col}' first NaN at: {first_nan}")
+
+# # Now check raw data quality around these NaN times
+# if not nan_rows.empty:
+#     min_time = nan_rows['time'].min()
+#     max_time = nan_rows['time'].max()
+
+#     print(f"\nChecking raw data from {min_time} to {max_time} for anomalies...")
+#     raw_subset = df_raw[(df_raw['time'] >= min_time) & (df_raw['time'] <= max_time)]
+#     print(raw_subset)
+
+#     # Check for missing or zero volume/prices
+#     zero_vol = raw_subset[raw_subset['volume'] == 0]
+#     print(f"\nRows with zero volume in raw data between NaN periods:\n{zero_vol}")
+
+#     missing_prices = raw_subset[(raw_subset['open'].isna()) | (raw_subset['close'].isna())]
+#     print(f"\nRows with missing prices in raw data between NaN periods:\n{missing_prices}")
+# else:
+#     print("No NaN rows found no engineered data!")
+
+
+df = pd.read_csv('data/processed/btc_ohlcv_5min_engineered.csv', parse_dates=['time'])
+
+# Sort index by time
+df.sort_index(inplace=True)
+
+# Drop duplicate timestamps
+df = df[~df.index.duplicated(keep='first')]
+
+# Handle missing values
+df.ffill(inplace=True)
+df.dropna(inplace=True)

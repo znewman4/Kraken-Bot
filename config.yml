@@ -33,7 +33,7 @@ features:
   indicators:
     - sma: {window: 20}
     - rsi: {window: 14}
-  drop_na: true
+  drop_na: false
 
 model:
   horizons: [1,12,24,48]
