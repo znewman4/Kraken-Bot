@@ -1,6 +1,7 @@
 data:
   raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
   feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
+  backtrader_data_path: "data/features_with_exp_returns.csv"
 
 
 exchange:

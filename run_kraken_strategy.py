@@ -2,7 +2,7 @@
 
 import argparse, logging
 from config_loader import load_config
-from src.backtesting.runner import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 def parse_args():
     p = argparse.ArgumentParser()

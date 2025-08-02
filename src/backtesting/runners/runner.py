@@ -4,7 +4,7 @@
 
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategy import KrakenStrategy
+from src.backtesting.strategies.strategytest import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
 
@@ -31,7 +31,7 @@ def run_backtest(config_path='config.yml'):
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     df = pd.read_csv(
-        config['data']['feature_data_path'],
+        config['data']['backtrader_data_path'],
         parse_dates=['time']
     )
     df.set_index('time', inplace=True)

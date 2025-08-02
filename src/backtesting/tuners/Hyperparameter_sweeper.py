@@ -2,7 +2,7 @@ import itertools
 import pandas as pd
 import numpy as np
 from config_loader import load_config
-from src.backtesting.runner_pnl_cv import run_backtest
+from src.backtesting.runners.runner_pnl_cv import run_backtest
 
 # Load base config (models already trained + paths set)
 cfg = load_config("config.yml")

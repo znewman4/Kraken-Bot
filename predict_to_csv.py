@@ -36,7 +36,7 @@ def predict_all_models_to_csv(cfg, out_csv='features_with_exp_returns.csv'):
 
     # 3. Average predictions across all horizons
     horizon_cols = horizon_preds.columns
-    df['exp_return'] = horizon_preds.mean(axis=1)
+    df['exp_return'] = horizon_preds.mean(axis=1)      #remember to change the exp_return to a weighted sum
     # Optionally, include all individual horizons
     for col in horizon_cols:
         df[col] = horizon_preds[col]

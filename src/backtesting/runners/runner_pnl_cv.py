@@ -1,6 +1,6 @@
 import backtrader as bt
 import pandas as pd
-from src.backtesting.strategytest import KrakenStrategy
+from src.backtesting.strategies.strategytest import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 
 def run_backtest(cfg):
@@ -44,6 +44,10 @@ def run_backtest(cfg):
         print(f"⚠️ Could not extract TradeAnalyzer: {e}")
         trade_analysis = {}
 
+
+    trade_df = strat.get_trade_log_df()
+    trade_df.to_csv("trade_log.csv", index=False)
+
     return metrics, {
         "real_pnl": total_real_pnl,
         "sharpe": sharpe_val,
@@ -51,5 +55,4 @@ def run_backtest(cfg):
         "trades": trade_analysis,
     }
 
-    trade_df = strat.get_trade_log_df()
-    trade_df.to_csv("trade_log.csv", index=False)
+

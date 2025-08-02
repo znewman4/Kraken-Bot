@@ -59,7 +59,7 @@ from src.data_cleaning import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
 from src.modeling import prepare_features_and_target, time_series_cv_split
 from src.test_trading_logic import run_test
-from src.backtesting.runner import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 
 # -----------------------------------------------------------------------------

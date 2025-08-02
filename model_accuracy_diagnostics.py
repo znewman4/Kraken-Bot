@@ -5,7 +5,7 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 import seaborn as sns
-from src.backtesting.runner import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 
 def load_config(path):

@@ -2,7 +2,7 @@ import itertools
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit
 from src.modeling import train_xgboost
-from src.pnl_scorer import PnLBacktestScorer
+from notes.pnl_scorer import PnLBacktestScorer
 
 def run_custom_tuning(X, y, base_cfg):
     param_grid = base_cfg["tuning"]["param_grid"]

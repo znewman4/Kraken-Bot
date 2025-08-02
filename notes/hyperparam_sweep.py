@@ -3,7 +3,7 @@ import os
 import copy
 import pandas as pd
 from config_loader import load_config
-from src.backtesting.runner import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 # 1) Load your base config
 base_cfg = load_config("config.yml")

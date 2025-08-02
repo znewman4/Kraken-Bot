@@ -8,7 +8,7 @@ class EngineeredData(bt.feeds.PandasData):
         'BBL_20_2.0', 'BBM_20_2.0', 'BBU_20_2.0',
         'MACDs_12_26_9', 'volatility_5', 'log_return', 'log_return_1',
         'count', 'MACD_12_26_9', 'MACDh_12_26_9',
-        'BBB_20_2.0', 'BBP_20_2.0', 'vwap', 'log_return_5',
+        'BBB_20_2.0', 'BBP_20_2.0', 'vwap', 'log_return_5', 'exp_return',
     )
     params = (
         ('datetime', None),
@@ -35,4 +35,6 @@ class EngineeredData(bt.feeds.PandasData):
         ('BBP_20_2.0', -1),
         ('vwap', -1),
         ('log_return_5', -1),
+        ('exp_return',  'exp_return'),   
+
     )

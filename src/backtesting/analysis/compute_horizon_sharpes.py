@@ -5,7 +5,7 @@ import yaml
 import tempfile
 import os
 
-from src.backtesting.runner import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 def main():
     p = argparse.ArgumentParser(
