@@ -2,7 +2,7 @@
 
 import argparse, logging
 from config_loader import load_config
-from src.backtesting.runners.runner import run_backtest
+from src.backtesting.runners.runnertest import run_backtest
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -14,7 +14,8 @@ def main():
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info("Running backtest with config %s", args.config)
-    metrics, stats, cerebro = run_backtest(args.config)
+   
+    stats, cerebro = run_backtest(args.config)
 
     logging.info("Final equity: $%.2f", cerebro.broker.getvalue())
     logging.info("Total PnL:     $%.2f", stats["real_pnl"])

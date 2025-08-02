@@ -30,26 +30,53 @@ class KrakenStrategy(bt.Strategy):
 
     def __init__(self, *args, **kwargs):
         # Allow Cerebro to inject config via params
+        self.entry_order = None
+        self.last_trade_info  = None    
         super().__init__(*args, **kwargs)
         # Load external config if available, else use params
         self.cfg = self.p.config or {}
-        tl = self.cfg.get('trading_logic', {})
+        self.tl     = self.cfg['trading_logic']
         # Strategy parameters: prefer config values, fallback to params
-        self.H  = int(tl.get('forecast_horizon', self.p.forecast_horizon))
-        self.qw = int(tl.get('quantile_window',   self.p.quantile_window))
-        self.eq = float(tl.get('entry_quantile',   self.p.entry_quantile))
+        self.H  = int(self.tl.get('forecast_horizon', self.p.forecast_horizon))
+        self.qw = int(self.tl.get('quantile_window',   self.p.quantile_window))
+        self.eq = float(self.tl.get('entry_quantile',   self.p.entry_quantile))
 
-        # State & buffers
-        self.entry_bar = None                          # Index when position opened
-        self.closes    = deque(maxlen=max(self.H+1, 21))  # Recent closes for volatility
-        self.edge_norms = []                           # Full history of edges
-        self.trade_log = []                            # List of TradeLogEntry
-        self.last_trade_info = {}                      # Temp storage at entry
+       # parameters
+        self.max_hold_bars   = int(self.tl.get('max_hold_bars', 29))
+        self.quantile_window = int(self.tl.get('quantile_window', 1000))
+        self.entry_quantile  = float(self.tl.get('entry_quantile', 0.8))
+        self.stop_mult       = float(self.tl.get('stop_loss_atr_mult', 4.0))
+        self.tp_mult         = float(self.tl.get('take_profit_atr_mult', 6.0))
+        self.fee_rate        = float(self.tl.get('fee_rate', 0.002))
+        self.threshold_mult  = float(self.tl.get('threshold_mult', 0.05))
+        self.vol_window      = int(self.tl.get('vol_window', 20))
+        self.min_trade_size  = float(self.tl.get('min_trade_size', 0.01))
+        self.max_position    = float(self.tl.get('max_position', 1.0))
+        self.tick_size       = float(self.tl.get('tick_size', 0.01))
+
+        # state
+        self.trade_log      = []
+        self.entry_bar      = None
+        self.bar_executed   = -1
+        self.orders         = []
+
+        # trackers
+        self.closes        = []
+        self.ret_buffer    = []
+        self.exp_returns   = []
+        self.edge_norms    = []
+        self.thresholds    = []
+        self.signals       = []
+        self.signal_buffer = deque(maxlen=self.tl.get('persistence', 1))
+        self.pnls          = []
+
 
         # ATR indicator for logging purposes
         self.atr = bt.indicators.ATR(self.data, period=14)
 
     def notify_order(self, order):
+        if order is not self.entry_order:
+            return
         if order.status == order.Completed and order.size:
             side = 'LONG' if order.isbuy() else 'SHORT'
             self.last_trade_info = {
@@ -62,34 +89,44 @@ class KrakenStrategy(bt.Strategy):
                 'atr':            float(self.atr[0]),
                 'entry_bar':      len(self),
             }
+            self.entry_order = None
             print(f"▶ {side} entry at {order.executed.price:.4f}")
 
     def notify_trade(self, trade):
-        if trade.isclosed and self.last_trade_info:
-            info       = self.last_trade_info
-            exit_time  = self.data.datetime.datetime(0)
-            exit_price = trade.executed.price
-            net        = trade.pnlcomm
-            size       = info['position_size']
-            pnl_per    = net/size if size else 0.0
-            hold       = len(self) - info['entry_bar']
+        # 1) Bail out if the trade isn't actually closed,
+        #    or if we never set up entry info in notify_order.
+        if not trade.isclosed or self.last_trade_info is None:
+            return
 
-            self.trade_log.append(TradeLogEntry(
-                entry_time      = info['entry_time'],
-                exit_time       = exit_time,
-                entry_price     = info['entry_price'],
-                exit_price      = exit_price,
-                position_size   = size,
-                predicted_exp_r = info['predicted_exp_r'],
-                edge            = info['edge'],
-                volatility      = info['volatility'],
-                net_pnl         = net,
-                pnl_per_unit    = pnl_per,
-                hold_bars       = hold,
-                atr             = info['atr']
-            ))
-            print(f"◀ Trade closed | PnL={net:.4f}, bars held={hold}")
-            self.last_trade_info.clear()
+        # 2) Safe to unpack the info dict now:
+        info       = self.last_trade_info
+        exit_time  = self.data.datetime.datetime(0)
+        exit_price = trade.price
+        net        = trade.pnlcomm
+        size       = info['position_size']
+        pnl_per    = net / size if size else 0.0
+        hold       = len(self) - info['entry_bar']
+        self.pnls.append(net)
+
+        # 3) Log it
+        self.trade_log.append(TradeLogEntry(
+            entry_time      = info['entry_time'],
+            exit_time       = exit_time,
+            entry_price     = info['entry_price'],
+            exit_price      = exit_price,
+            position_size   = size,
+            predicted_exp_r = info['predicted_exp_r'],
+            edge            = info['edge'],
+            volatility      = info['volatility'],
+            net_pnl         = net,
+            pnl_per_unit    = pnl_per,
+            hold_bars       = hold,
+            atr             = info['atr']
+        ))
+        print(f"◀ Trade closed | PnL={net:.4f}, bars held={hold}")
+
+        # 4) Finally clear it so the next notify_trade won’t reuse stale info
+        self.last_trade_info = None
 
     def _should_exit(self):
         if self.position and self.entry_bar is not None:
@@ -123,10 +160,10 @@ class KrakenStrategy(bt.Strategy):
     def _enter(self, sig):
         price = self.data.close[0]
         if sig == 1:
-            self.buy()
+            self.entry_order = self.buy()
             print(f"Entry LONG | price={price:.4f}, edge={self.current_edge:.4f}")
         elif sig == -1:
-            self.sell()
+            self.entry_order = self.sell()
             print(f"Entry SHORT | price={price:.4f}, edge={self.current_edge:.4f}")
 
     def _update_buffers(self):
@@ -148,6 +185,9 @@ class KrakenStrategy(bt.Strategy):
 
         self._update_buffers()
 
-    def get_trade_log(self):
+
+    def get_trade_log_df(self):
         import pandas as pd
         return pd.DataFrame([t.__dict__ for t in self.trade_log])
+
+
