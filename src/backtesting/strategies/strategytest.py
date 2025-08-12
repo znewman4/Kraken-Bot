@@ -1,14 +1,16 @@
-# src/backtesting/experimental_strategy.py
+# src/backtesting/strategytest.py
 import backtrader as bt
+import pandas as pd
 import numpy as np
+import xgboost as xgb
 from collections import deque
-from dataclasses import dataclass
 from datetime import datetime
+from dataclasses import dataclass
 
 @dataclass
 class TradeLogEntry:
-    entry_time: datetime
-    exit_time: datetime
+    entry_time: str
+    exit_time: str
     entry_price: float
     exit_price: float
     position_size: float
@@ -17,31 +19,46 @@ class TradeLogEntry:
     volatility: float
     net_pnl: float
     pnl_per_unit: float
-    hold_bars: int
+    stop_hit: bool
+    take_profit_hit: bool
+    hold_time_mins: float
     atr: float
+    stop_dist: float
+    tp_dist: float
+    bar_high: float
+    bar_low: float
+    bar_close: float
+    signal: int
+    entry_bar: int
+    exit_bar: int
+    bars_held: int
+
 
 class KrakenStrategy(bt.Strategy):
-    params = (
-        ('config', None),             # External config dict if provided
-        ('forecast_horizon', 29),      # Default bars to hold before exit
-        ('quantile_window', 100),      # Default rolling window for quantile gating
-        ('entry_quantile', 0.8),       # Default quantile threshold for entries
-    )
+    params = {
+        'config' : None, 
+        'enable_timed_exit' : False,
+        'enable_persistence' : False,
+        'enable_quantile' : True,
+     }
 
-    def __init__(self, *args, **kwargs):
-        # Allow Cerebro to inject config via params
-        self.entry_order = None
-        self.last_trade_info  = None    
-        super().__init__(*args, **kwargs)
-        # Load external config if available, else use params
-        self.cfg = self.p.config or {}
+
+    def __init__(self):
+        # --- CONFIG & MODELS ---
+        self.cfg    = self.p.config
         self.tl     = self.cfg['trading_logic']
-        # Strategy parameters: prefer config values, fallback to params
-        self.H  = int(self.tl.get('forecast_horizon', self.p.forecast_horizon))
-        self.qw = int(self.tl.get('quantile_window',   self.p.quantile_window))
-        self.eq = float(self.tl.get('entry_quantile',   self.p.entry_quantile))
 
-       # parameters
+        # load models
+        self.models         = {}
+        self.feature_names  = {}
+        for h, path in self.tl['model_paths'].items():
+            m = xgb.XGBRegressor()
+            m.load_model(path)
+            ih = int(h)
+            self.models[ih]        = m
+            self.feature_names[ih] = m.get_booster().feature_names
+
+        # parameters
         self.max_hold_bars   = int(self.tl.get('max_hold_bars', 29))
         self.quantile_window = int(self.tl.get('quantile_window', 1000))
         self.entry_quantile  = float(self.tl.get('entry_quantile', 0.8))
@@ -54,13 +71,12 @@ class KrakenStrategy(bt.Strategy):
         self.max_position    = float(self.tl.get('max_position', 1.0))
         self.tick_size       = float(self.tl.get('tick_size', 0.01))
 
-        # state
+        # state & logs
         self.trade_log      = []
-        self.entry_bar      = None
-        self.bar_executed   = -1
         self.orders         = []
+        self.pnls            = []
 
-        # trackers
+        # buffers and indicators
         self.closes        = []
         self.ret_buffer    = []
         self.exp_returns   = []
@@ -68,126 +84,203 @@ class KrakenStrategy(bt.Strategy):
         self.thresholds    = []
         self.signals       = []
         self.signal_buffer = deque(maxlen=self.tl.get('persistence', 1))
-        self.pnls          = []
 
+        self.atr = bt.indicators.ATR(self.data, period=self.tl.get('atr_period',14))
+        self.sma = bt.indicators.SMA(self.data.close,
+                                     period=self.cfg.get('features',{}).get('sma_window',20))
+        self.rsi = bt.indicators.RSI(self.data.close,
+                                     period=self.cfg.get('features',{}).get('rsi_window',14))
+        self.tp_buffer  = deque(maxlen=self.vol_window)
+        self.vol_buffer = deque(maxlen=self.vol_window)
+        self.std        = bt.indicators.StdDev(self.data.close, period=self.vol_window)
 
-        # ATR indicator for logging purposes
-        self.atr = bt.indicators.ATR(self.data, period=14)
+        print(f"{datetime.utcnow().isoformat()} - KrakenStrategy initialized")
 
     def notify_order(self, order):
-        if order is not self.entry_order:
-            return
-        if order.status == order.Completed and order.size:
-            side = 'LONG' if order.isbuy() else 'SHORT'
-            self.last_trade_info = {
-                'entry_time':     self.data.datetime.datetime(0),
-                'entry_price':    order.executed.price,
-                'position_size':  order.executed.size,
-                'predicted_exp_r': float(self.data.exp_return[0]),
-                'edge':           self.current_edge,
-                'volatility':     float(self.data.volatility_5[0]),
-                'atr':            float(self.atr[0]),
-                'entry_bar':      len(self),
-            }
-            self.entry_order = None
-            print(f"▶ {side} entry at {order.executed.price:.4f}")
+        #add in order status if wanted
+        pass
 
     def notify_trade(self, trade):
-        # 1) Bail out if the trade isn't actually closed,
-        #    or if we never set up entry info in notify_order.
-        if not trade.isclosed or self.last_trade_info is None:
+        # 1) On the bar the trade actually opens
+        if trade.justopened:
+            self.last_trade_info = {
+                'entry_time':      trade.open_datetime.isoformat(),
+                'entry_price':     trade.open_price,
+                'size':            trade.size,
+                'predicted_exp_r': self.exp_returns[-1],
+                'edge':            self.edge_norms[-1],
+                'volatility':      self.ret_buffer[-1] if self.ret_buffer else np.nan,
+                'atr':             self.atr[0],
+                'stop_dist':       self.stop_mult * self.atr[0],
+                'tp_dist':         self.tp_mult   * self.atr[0],
+                'bar_high':        self.data.high[0],
+                'bar_low':         self.data.low[0],
+                'bar_close':       self.data.close[0],
+                'signal':          self.signals[-1],
+                'open_bar':        trade.baropen,    # record the bar index
+            }
             return
 
-        # 2) Safe to unpack the info dict now:
-        info       = self.last_trade_info
-        exit_time  = self.data.datetime.datetime(0)
-        exit_price = trade.price
-        net        = trade.pnlcomm
-        size       = info['position_size']
-        pnl_per    = net / size if size else 0.0
-        hold       = len(self) - info['entry_bar']
-        self.pnls.append(net)
+        # 2) On the bar the trade actually closes
+        if trade.isclosed and 'open_bar' in self.last_trade_info:
+            info      = self.last_trade_info
+            exit_bar  = trade.barclose            # bar index at close
+            open_bar  = info.pop('open_bar')
+            bars_held = exit_bar - open_bar
+            pnl       = trade.pnlcomm
+            hold_min  = (trade.close_datetime - trade.open_datetime).total_seconds() / 60
 
-        # 3) Log it
-        self.trade_log.append(TradeLogEntry(
-            entry_time      = info['entry_time'],
-            exit_time       = exit_time,
-            entry_price     = info['entry_price'],
-            exit_price      = exit_price,
-            position_size   = size,
-            predicted_exp_r = info['predicted_exp_r'],
-            edge            = info['edge'],
-            volatility      = info['volatility'],
-            net_pnl         = net,
-            pnl_per_unit    = pnl_per,
-            hold_bars       = hold,
-            atr             = info['atr']
-        ))
-        print(f"◀ Trade closed | PnL={net:.4f}, bars held={hold}")
+            self.trade_log.append(TradeLogEntry(
+                entry_time      = info['entry_time'],
+                exit_time       = trade.close_datetime.isoformat(),
+                entry_price     = info['entry_price'],
+                exit_price      = trade.close_price,
+                position_size   = info['size'],
+                predicted_exp_r = info['predicted_exp_r'],
+                edge            = info['edge'],
+                volatility      = info['volatility'],
+                net_pnl         = pnl,
+                pnl_per_unit    = pnl / info['size'] if info['size'] else 0.0,
+                stop_hit        = pnl < 0,
+                take_profit_hit = pnl > 0,
+                hold_time_mins  = hold_min,
+                atr             = info['atr'],
+                stop_dist       = info['stop_dist'],
+                tp_dist         = info['tp_dist'],
+                bar_high        = info['bar_high'],
+                bar_low         = info['bar_low'],
+                bar_close       = info['bar_close'],
+                signal          = info['signal'],
+                entry_bar        = open_bar,
+                exit_bar       = exit_bar,
+                bars_held       = bars_held,
+            ))
 
-        # 4) Finally clear it so the next notify_trade won’t reuse stale info
-        self.last_trade_info = None
+            self.pnls.append(pnl)
+            print(f"🔍 TRADE CLOSED | PnL={pnl:.2f} | Bars held={bars_held}")
+            del self.last_trade_info
+            self.orders = []
 
-    def _should_exit(self):
-        if self.position and self.entry_bar is not None:
-            bars_held = len(self) - self.entry_bar
-            if bars_held >= self.H:
-                self.close()
-                print(f"Exiting after {bars_held} bars")
-                self.entry_bar = None
-                return True
-        return False
-
-    def _compute_edge_signal(self):
-        exp_r = float(self.data.exp_return[0])
-        recent = list(self.closes)
-        vol = np.std(np.diff(recent)) if len(recent) >= 3 else np.nan
-        edge = exp_r/vol if vol and vol > 0 else 0.0
-        sig  = int(np.sign(edge))
-        self.current_edge = edge
-        return edge, sig
-
-    def _passes_quantile(self, edge, sig):
-        self.edge_norms.append(edge)
-        if len(self.edge_norms) >= self.qw:
-            hist = np.array(self.edge_norms[-self.qw:])
-            long_thr  = np.quantile(hist, self.eq)
-            short_thr = np.quantile(hist, 1 - self.eq)
-            if (sig == 1 and edge < long_thr) or (sig == -1 and edge > short_thr):
-                return False
-        return True
-
-    def _enter(self, sig):
-        price = self.data.close[0]
-        if sig == 1:
-            self.entry_order = self.buy()
-            print(f"Entry LONG | price={price:.4f}, edge={self.current_edge:.4f}")
-        elif sig == -1:
-            self.entry_order = self.sell()
-            print(f"Entry SHORT | price={price:.4f}, edge={self.current_edge:.4f}")
-
-    def _update_buffers(self):
-        self.closes.append(self.data.close[0])
 
     def next(self):
-        if self._should_exit():
+        self._clear_stale_orders()
+        if self.p.enable_timed_exit:
+            self._check_timed_exit()
+        if self._in_flight():
             return
-        if self.position:
-            return
-
-        edge, sig = self._compute_edge_signal()
-        if not self._passes_quantile(edge, sig):
-            return
-
-        if sig != 0:
-            self._enter(sig)
-            self.entry_bar = len(self)
-
+        
+        vol = float(self.std[0])  # trading vol for edge calc (execution logic), not a model feature
         self._update_buffers()
 
+        exp_r = self._predict_return()
+        self.exp_returns.append(exp_r)            
+        edge, thr, sig = self._compute_signal(exp_r, vol)
+
+        self.edge_norms.append(edge)               # <-- keep these lists fresh
+        self.thresholds.append(thr)
+        self.signals.append(sig)
+        self.signal_buffer.append(sig)
+
+        if sig == 0:
+            return
+        if self.p.enable_persistence and not self._pass_persistence(sig):
+            return
+        if self.p.enable_quantile and not self._pass_quantile(exp_r, sig):
+            return
+        
+        size = self._size_position(edge, sig)
+        if size is None:
+            return
+        
+        price = float(self.data.close[0])
+        self._place_bracket(size, price)
+
+
+    #helper methods
+    def _clear_stale_orders(self):
+        if self.orders and not self.position:
+            self.orders = []
+
+    def _check_timed_exit(self):
+        if self.position and hasattr(self, 'last_trade_info') and 'open_bar' in self.last_trade_info:
+            bars_held = len(self) - self.last_trade_info['open_bar']
+            if bars_held >= self.max_hold_bars:
+                for o in list(self.orders): self.cancel(o)
+                self.orders = []
+                self.close()
+
+    def _in_flight(self):
+        return bool(self.position or self.orders)
+    
+    #look into
+    def _update_buffers(self):
+        prev_close = self.closes[-1] if self.closes else self.data.close[0]
+        self.ret_buffer.append((self.data.close[0] - prev_close) / prev_close if prev_close else 0.0)
+        self.closes.append(self.data.close[0])
+        
+
+    def _predict_return(self):
+        preds = []
+        for h, m in self.models.items():
+            row = self._make_feature_row(h)
+            preds.append(m.predict(pd.DataFrame([row]))[0])
+        weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)[:len(preds)]
+        return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
+
+
+    def _compute_signal(self, exp_r, vol):
+        edge = exp_r / vol if vol > 0 else 0.0
+        thr  = (self.fee_rate * self.threshold_mult) / vol if vol > 0 else float('inf')
+        sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
+        return edge, thr, sig
+
+    def _pass_persistence(self, sig):
+        return len(self.signal_buffer) == self.signal_buffer.maxlen and all(s == sig for s in self.signal_buffer)
+
+    def _pass_quantile(self, exp_r, sig):
+        if len(self.exp_returns) < self.quantile_window:
+            return True
+        hist = np.array(self.exp_returns[-self.quantile_window:])
+        long_thr = np.quantile(hist, self.entry_quantile)
+        short_thr = np.quantile(hist, 1 - self.entry_quantile)
+        return not ((sig == 1 and exp_r < long_thr) or (sig == -1 and exp_r > short_thr))
+
+    def _size_position(self, edge, sig):
+        # sizing logic unchanged
+        recent = self.edge_norms[-50:]
+        ref = np.percentile(np.abs(recent), 90) if recent else 1e-4
+        size_fac = min(abs(edge) / max(ref, 1e-4), 1.0) * self.max_position * sig
+        cash = self.broker.getcash()
+        raw = (cash * size_fac) / self.data.close[0]
+        size = min(round(raw, 8), cash / self.data.close[0])
+        return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
+
+    def _place_bracket(self, size, price):
+        atr   = float(self.atr[0])
+        stop  = price - self.stop_mult * atr - self.tick_size if size > 0 else price + self.stop_mult * atr + self.tick_size
+        limit = price + self.tp_mult   * atr + self.tick_size if size > 0 else price - self.tp_mult   * atr - self.tick_size
+        if size > 0:
+            self.orders = self.buy_bracket(size=size, stopprice=stop, limitprice=limit)
+        else:
+            self.orders = self.sell_bracket(size=abs(size), stopprice=stop, limitprice=limit)
 
     def get_trade_log_df(self):
-        import pandas as pd
         return pd.DataFrame([t.__dict__ for t in self.trade_log])
 
+    def _get_feature_value(self, feat_name: str) -> float:
+        """
+        Read feature from EngineeredData feed.
+        - lower-case
+        - replace '.' with '_' to match feed line names
+        """
+        lf = feat_name.lower()
+        attr = lf.replace('.', '_')
+        line = getattr(self.data, attr, None) or getattr(self.data, lf, None)
+        if line is None:
+            raise KeyError(f"Missing feature '{feat_name}' (tried '{attr}'). Check EngineeredData lines/params.")
+        return float(line[0])
+
+    def _make_feature_row(self, h: int):
+        feats = self.feature_names[h]  # use horizon-specific features from the booster
+        return {f: self._get_feature_value(f) for f in feats}
 
