@@ -58,7 +58,6 @@ def run_backtest(config_path='config.yml'):
 
     results = cerebro.run()
     strat = results[0]
-    metrics = strat.get_metrics()
     real_trade_pnls = strat.pnls      # list of net PnL from notify_trade()
     total_real_pnl  = sum(real_trade_pnls)
 
@@ -79,6 +78,6 @@ def run_backtest(config_path='config.yml'):
     trade_df.to_csv("trade_log.csv", index=False)   
 
 
-    return metrics, stats, cerebro
+    return stats, cerebro
 
 

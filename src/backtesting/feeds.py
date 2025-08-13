@@ -8,7 +8,7 @@ class EngineeredData(bt.feeds.PandasData):
         'macds_12_26_9', 'volatility_5', 'log_return', 'log_return_1',
         'count', 'macd_12_26_9', 'macdh_12_26_9',
         'bbb_20_2_0', 'bbp_20_2_0',                # ← underscore versions
-        'vwap', 'log_return_5', 'exp_return',
+        'vwap', 'log_return_5',
     )
     params = (
         ('datetime', None),
@@ -40,5 +40,4 @@ class EngineeredData(bt.feeds.PandasData):
 
         ('vwap', -1),
         ('log_return_5', -1),
-        ('exp_return', 'exp_return'),
     )

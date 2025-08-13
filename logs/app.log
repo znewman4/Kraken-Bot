@@ -914,3 +914,19 @@ ccxt.base.errors.NetworkError: kraken GET https://api.kraken.com/0/public/Assets
 2025-08-11 16:50:04,500 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
 2025-08-11 16:50:04,501 [__main__] INFO: Retraining horizon 48 using top SHAP features...
 2025-08-11 16:50:10,241 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
+2025-08-13 09:53:20,994 [__main__] INFO: Loaded config, starting up
+2025-08-13 09:53:21,097 [src.data_loading] INFO: Fetching bars since 2025-08-11 09:40:00 (+1ms)
+2025-08-13 09:53:23,666 [src.data_loading] INFO: Appended 566 rows up to 2025-08-13 08:50:00 (total 8733 rows)
+2025-08-13 09:53:24,688 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-13 09:53:51,150 [__main__] INFO: Horizon 1 model saved to models/xgb_h1.json
+2025-08-13 09:53:51,152 [__main__] INFO: Retraining horizon 1 using top SHAP features...
+2025-08-13 09:53:58,373 [__main__] INFO: Horizon 1 SHAP-retrained model saved to models/xgb_h1.json
+2025-08-13 09:54:14,948 [__main__] INFO: Horizon 12 model saved to models/xgb_h12.json
+2025-08-13 09:54:14,948 [__main__] INFO: Retraining horizon 12 using top SHAP features...
+2025-08-13 09:54:24,749 [__main__] INFO: Horizon 12 SHAP-retrained model saved to models/xgb_h12.json
+2025-08-13 09:54:42,859 [__main__] INFO: Horizon 24 model saved to models/xgb_h24.json
+2025-08-13 09:54:42,861 [__main__] INFO: Retraining horizon 24 using top SHAP features...
+2025-08-13 09:54:52,602 [__main__] INFO: Horizon 24 SHAP-retrained model saved to models/xgb_h24.json
+2025-08-13 09:55:10,820 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
+2025-08-13 09:55:10,821 [__main__] INFO: Retraining horizon 48 using top SHAP features...
+2025-08-13 09:55:19,675 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json

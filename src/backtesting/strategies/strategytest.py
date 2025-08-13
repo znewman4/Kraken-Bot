@@ -37,16 +37,16 @@ class TradeLogEntry:
 class KrakenStrategy(bt.Strategy):
     params = {
         'config' : None, 
-        'enable_timed_exit' : False,
+        'enable_timed_exit' : True,
         'enable_persistence' : False,
-        'enable_quantile' : True,
+        'enable_quantile' : False,
      }
-
 
     def __init__(self):
         # --- CONFIG & MODELS ---
         self.cfg    = self.p.config
         self.tl     = self.cfg['trading_logic']
+        self.last_trade_info = {}  # ADDED: per-trade facts captured at fills
 
         # load models
         self.models         = {}
@@ -74,7 +74,7 @@ class KrakenStrategy(bt.Strategy):
         # state & logs
         self.trade_log      = []
         self.orders         = []
-        self.pnls            = []
+        self.pnls           = []
 
         # buffers and indicators
         self.closes        = []
@@ -96,76 +96,202 @@ class KrakenStrategy(bt.Strategy):
 
         print(f"{datetime.utcnow().isoformat()} - KrakenStrategy initialized")
 
-    def notify_order(self, order):
-        #add in order status if wanted
-        pass
+        # ADDED: state for deferred OCO children (prevents same-bar exits)
+        self.entry_order    = None
+        self.stop_order     = None
+        self.limit_order    = None
+        self.children_armed = False   # True right after entry fills; children placed next bar
+        self.entry_bar      = None    # bar index at entry
+        self.entry_fill_bar = None    # bar index when broker reports entry Completed
+        self.pending_exit_reason = None  # reason to use when we intentionally flatten
 
-    def notify_trade(self, trade):
-        # 1) On the bar the trade actually opens
-        if trade.justopened:
-            self.last_trade_info = {
-                'entry_time':      trade.open_datetime.isoformat(),
-                'entry_price':     trade.open_price,
-                'size':            trade.size,
-                'predicted_exp_r': self.exp_returns[-1],
-                'edge':            self.edge_norms[-1],
-                'volatility':      self.ret_buffer[-1] if self.ret_buffer else np.nan,
-                'atr':             self.atr[0],
-                'stop_dist':       self.stop_mult * self.atr[0],
-                'tp_dist':         self.tp_mult   * self.atr[0],
-                'bar_high':        self.data.high[0],
-                'bar_low':         self.data.low[0],
-                'bar_close':       self.data.close[0],
-                'signal':          self.signals[-1],
-                'open_bar':        trade.baropen,    # record the bar index
-            }
+
+    def notify_order(self, order):
+        """
+        ADDED: capture *true* executed prices at fills and defer children to next bar.
+        - Entry (parent Completed) -> stash entry price/size/time; arm child levels (submit next bar)
+        - Exit  (child Completed)  -> stash exit price and exit reason (TP/SL)
+        """
+        # No info on fills yet
+        if order.status in (order.Submitted, order.Accepted):
             return
 
-        # 2) On the bar the trade actually closes
-        if trade.isclosed and 'open_bar' in self.last_trade_info:
-            info      = self.last_trade_info
-            exit_bar  = trade.barclose            # bar index at close
-            open_bar  = info.pop('open_bar')
-            bars_held = exit_bar - open_bar
-            pnl       = trade.pnlcomm
-            hold_min  = (trade.close_datetime - trade.open_datetime).total_seconds() / 60
+        # Optional visibility (OCO cancels land here)
+        if order.status == order.Canceled:
+            # You can log if you like:
+            # print(f"{self.data.datetime.datetime(0).isoformat()} – ❌ Canceled: {order.info.get('tag','')}")
+            return
 
-            self.trade_log.append(TradeLogEntry(
-                entry_time      = info['entry_time'],
-                exit_time       = trade.close_datetime.isoformat(),
-                entry_price     = info['entry_price'],
-                exit_price      = trade.close_price,
-                position_size   = info['size'],
-                predicted_exp_r = info['predicted_exp_r'],
-                edge            = info['edge'],
-                volatility      = info['volatility'],
-                net_pnl         = pnl,
-                pnl_per_unit    = pnl / info['size'] if info['size'] else 0.0,
-                stop_hit        = pnl < 0,
-                take_profit_hit = pnl > 0,
-                hold_time_mins  = hold_min,
-                atr             = info['atr'],
-                stop_dist       = info['stop_dist'],
-                tp_dist         = info['tp_dist'],
-                bar_high        = info['bar_high'],
-                bar_low         = info['bar_low'],
-                bar_close       = info['bar_close'],
-                signal          = info['signal'],
-                entry_bar        = open_bar,
-                exit_bar       = exit_bar,
-                bars_held       = bars_held,
-            ))
+        if order.status != order.Completed:
+            return
 
-            self.pnls.append(pnl)
-            print(f"🔍 TRADE CLOSED | PnL={pnl:.2f} | Bars held={bars_held}")
-            del self.last_trade_info
-            self.orders = []
+        now = self.data.datetime.datetime(0).isoformat()
 
+        # ---------- ENTRY COMPLETED ----------
+        # Heuristic: it's the entry if it matches our tracked entry order OR has no parent and children not armed.
+        if self.entry_order is order:
+            px   = float(order.executed.price)
+            sz   = float(order.executed.size)
+            atr  = float(self.atr[0])
+            tick = float(self.tick_size)
+
+            self.entry_bar      = len(self)
+            self.entry_fill_bar = len(self)
+            self.last_trade_info = {
+                'entry_time':      now,
+                'entry_price':     px,
+                'size':            sz,
+                'predicted_exp_r': float(self.exp_returns[-1]) if self.exp_returns else float('nan'),
+                'edge':            float(self.edge_norms[-1]) if self.edge_norms else float('nan'),
+                'volatility':      float(self.ret_buffer[-1]) if self.ret_buffer else float('nan'),
+                'atr':             atr,
+                'stop_dist':       float(self.stop_mult * atr),
+                'tp_dist':         float(self.tp_mult   * atr),
+                'bar_high':        float(self.data.high[0]),
+                'bar_low':         float(self.data.low[0]),
+                'bar_close':       float(self.data.close[0]),
+                'signal':          int(self.signals[-1]) if self.signals else 0,
+                'entry_bar':       self.entry_bar,
+                'exit_bar':        None,
+                'bars_held':       None,
+                'exit_reason':     None,
+            }
+
+            # Arm child price levels now, submit them next bar to avoid same-bar exits
+            side = 1 if sz > 0 else -1
+            if side > 0:
+                self.armed_stop  = px - self.stop_mult * atr - tick
+                self.armed_limit = px + self.tp_mult   * atr + tick
+            else:
+                self.armed_stop  = px + self.stop_mult * atr + tick
+                self.armed_limit = px - self.tp_mult   * atr - tick
+
+            self.children_armed = True
+            self.entry_order    = order
+            print(f"{now} – ▶ ENTRY filled: price={px:.6f}, size={sz:.6f} (children will arm next bar)")
+            return
+
+        # ---------- EXIT (CHILD) COMPLETED ----------
+        ex_price = float(order.executed.price)
+        ex_size  = float(order.executed.size)
+        reason   = "TP" if order.exectype == bt.Order.Limit else ("SL" if order.exectype == bt.Order.Stop else "Other")
+
+        if self.last_trade_info:
+            self.last_trade_info['exit_price']  = ex_price
+            self.last_trade_info['exit_reason'] = reason
+            self.last_trade_info['exit_bar']    = len(self)
+
+        # clear refs so _in_flight() reflects reality
+        if self.limit_order is order:
+            self.limit_order = None
+        if self.stop_order is order:
+            self.stop_order = None
+
+        print(f"{now} – ◀ EXIT filled ({reason}): price={ex_price:.6f}, size={ex_size:.6f}")
+
+                # ---------- TIMED / MANUAL EXIT COMPLETED ----------
+        # If we intentionally flattened (e.g., timed exit via self.close()), record it here.
+        # Guard against misclassifying the entry: it must not be the tracked entry order.
+        if (
+            self.pending_exit_reason
+            and self.last_trade_info
+            and (self.entry_order is not order)   # ensure this isn't the entry's Completed
+            and order.parent is None              # close() orders have no parent
+        ):
+            ex_price = float(order.executed.price)
+            ex_size  = float(order.executed.size)
+
+            self.last_trade_info['exit_price']  = ex_price
+            self.last_trade_info['exit_reason'] = self.pending_exit_reason  # e.g., "Timed"
+            self.last_trade_info['exit_bar']    = len(self)
+
+            # clear reason flag until next intentional flatten
+            self.pending_exit_reason = None
+
+            print(f"{now} – ◀ EXIT filled ({self.last_trade_info['exit_reason']}): "
+                  f"price={ex_price:.6f}, size={ex_size:.6f}")
+
+            return
+
+
+    def notify_trade(self, trade):
+        """
+        CHANGED: write a log row only when the position is flat (trade.isclosed).
+        Prices come from notify_order (true executed fills), guaranteeing accuracy.
+        """
+        if not trade.isclosed or not self.last_trade_info:
+            return
+
+        info = self.last_trade_info
+        pnl  = float(trade.pnlcomm)
+
+        # feed-time timestamp for consistency with your working version
+        exit_time = self.data.datetime.datetime(0).isoformat()
+        entry_dt  = pd.to_datetime(info['entry_time'])
+        hold_min  = (self.data.datetime.datetime(0) - entry_dt).total_seconds() / 60.0
+
+        open_bar  = info.get('entry_bar', trade.baropen)
+        close_bar = info.get('exit_bar', trade.barclose)
+        bars_held = (close_bar - open_bar) if (close_bar is not None and open_bar is not None) else (trade.barclose - trade.baropen)
+
+        # --- robust exit price fallback: use child fill if present, else trade.avg price ---
+        _exit_px = info.get('exit_price')
+        _exit_px = _exit_px if _exit_px is not None else trade.price
+
+        self.trade_log.append(TradeLogEntry(
+            entry_time      = info['entry_time'],
+            exit_time       = self.data.datetime.datetime(0).isoformat(),
+            entry_price     = float(info['entry_price']),
+            exit_price      = float(_exit_px),
+            position_size   = float(info['size']),
+            predicted_exp_r = float(info['predicted_exp_r']),
+            edge            = float(info['edge']),
+            volatility      = float(info['volatility']),
+            net_pnl         = pnl,
+            pnl_per_unit    = pnl / float(info['size']) if info['size'] else 0.0,
+            stop_hit        = info.get('exit_reason') == 'SL',
+            take_profit_hit = info.get('exit_reason') == 'TP',
+            hold_time_mins  = hold_min,
+            atr             = float(info['atr']),
+            stop_dist       = float(info['stop_dist']),
+            tp_dist         = float(info['tp_dist']),
+            bar_high        = float(info['bar_high']),
+            bar_low         = float(info['bar_low']),
+            bar_close       = float(info['bar_close']),
+            signal          = int(info['signal']),
+            entry_bar       = int(open_bar) if open_bar is not None else int(trade.baropen),
+            exit_bar        = int(close_bar) if close_bar is not None else int(trade.barclose),
+            bars_held       = int(bars_held),
+        ))
+        self.pnls.append(pnl)
+        print(f"🔍 TRADE CLOSED | {info.get('exit_reason','?')} | Net PnL={pnl:.2f} | Bars held={int(bars_held)}")
+
+        # reset per-trade state
+        self.last_trade_info = {}
+        self.children_armed  = False
+        self.entry_order     = None
+        self.stop_order      = None
+        self.limit_order     = None
+        self.orders          = []
 
     def next(self):
         self._clear_stale_orders()
         if self.p.enable_timed_exit:
             self._check_timed_exit()
+
+        # ADDED: place OCO children on the bar AFTER the entry filled -> prevents same-bar TP/SL hits
+        if self.children_armed and self.position and self.entry_fill_bar is not None and len(self) > self.entry_fill_bar:
+            sz = abs(self.position.size)
+            if self.position.size > 0:
+                self.stop_order  = self.sell(size=sz, exectype=bt.Order.Stop,  price=self.armed_stop)
+                self.limit_order = self.sell(size=sz, exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
+            else:
+                self.stop_order  = self.buy(size=sz,  exectype=bt.Order.Stop,  price=self.armed_stop)
+                self.limit_order = self.buy(size=sz,  exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
+            self.orders = [o for o in (self.stop_order, self.limit_order) if o is not None]
+            self.children_armed = False
+            print(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
+
         if self._in_flight():
             return
         
@@ -195,30 +321,29 @@ class KrakenStrategy(bt.Strategy):
         price = float(self.data.close[0])
         self._place_bracket(size, price)
 
-
-    #helper methods
+    # helper methods
     def _clear_stale_orders(self):
         if self.orders and not self.position:
             self.orders = []
 
     def _check_timed_exit(self):
-        if self.position and hasattr(self, 'last_trade_info') and 'open_bar' in self.last_trade_info:
-            bars_held = len(self) - self.last_trade_info['open_bar']
+        if self.position and hasattr(self, 'last_trade_info') and 'entry_bar' in self.last_trade_info:
+            bars_held = len(self) - self.last_trade_info['entry_bar']
             if bars_held >= self.max_hold_bars:
-                for o in list(self.orders): self.cancel(o)
+                for o in list(self.orders): 
+                    self.cancel(o)
                 self.orders = []
+                self.pending_exit_reason = "Timed"
                 self.close()
 
     def _in_flight(self):
         return bool(self.position or self.orders)
     
-    #look into
     def _update_buffers(self):
         prev_close = self.closes[-1] if self.closes else self.data.close[0]
         self.ret_buffer.append((self.data.close[0] - prev_close) / prev_close if prev_close else 0.0)
         self.closes.append(self.data.close[0])
         
-
     def _predict_return(self):
         preds = []
         for h, m in self.models.items():
@@ -226,7 +351,6 @@ class KrakenStrategy(bt.Strategy):
             preds.append(m.predict(pd.DataFrame([row]))[0])
         weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)[:len(preds)]
         return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
-
 
     def _compute_signal(self, exp_r, vol):
         edge = exp_r / vol if vol > 0 else 0.0
@@ -256,13 +380,16 @@ class KrakenStrategy(bt.Strategy):
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 
     def _place_bracket(self, size, price):
-        atr   = float(self.atr[0])
-        stop  = price - self.stop_mult * atr - self.tick_size if size > 0 else price + self.stop_mult * atr + self.tick_size
-        limit = price + self.tp_mult   * atr + self.tick_size if size > 0 else price - self.tp_mult   * atr - self.tick_size
+        """
+        CHANGED: ENTRY-ONLY. We deliberately do NOT submit children here.
+        Children are armed in notify_order at entry fill and submitted next bar in next().
+        This removes same-bar bracket exits.
+        """
         if size > 0:
-            self.orders = self.buy_bracket(size=size, stopprice=stop, limitprice=limit)
+            self.entry_order = self.buy(size=size)   # market entry
         else:
-            self.orders = self.sell_bracket(size=abs(size), stopprice=stop, limitprice=limit)
+            self.entry_order = self.sell(size=abs(size))
+        self.orders = [self.entry_order]
 
     def get_trade_log_df(self):
         return pd.DataFrame([t.__dict__ for t in self.trade_log])
@@ -283,4 +410,5 @@ class KrakenStrategy(bt.Strategy):
     def _make_feature_row(self, h: int):
         feats = self.feature_names[h]  # use horizon-specific features from the booster
         return {f: self._get_feature_value(f) for f in feats}
+
 
