@@ -275,3 +275,19 @@ class KrakenStrategy(bt.Strategy):
             'signal': sig,
             'threshold': thr
         })
+
+    def get_metrics(self):
+        import pandas as pd
+        df = pd.DataFrame(self.metrics_buffer)
+        # Rename to match old schema
+        df = df.rename(columns={'exp_r': 'exp_return', 'edge': 'edge_norm'})
+        # Ensure required columns exist
+        if 'position' not in df.columns:
+            df['position'] = 0.0
+
+        print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
+        if self.metrics_buffer:
+            print("DEBUG first metrics row:", self.metrics_buffer[0])
+            
+        return df
+

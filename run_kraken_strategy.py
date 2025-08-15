@@ -14,7 +14,9 @@ def main():
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info("Running backtest with config %s", args.config)
-    stats, cerebro = run_backtest(args.config)
+    metrics, stats, cerebro = run_backtest(args.config)
+
+    cerebro.plot(style='candlestick')
 
     logging.info("Final equity: $%.2f", cerebro.broker.getvalue())
     logging.info("Total PnL:     $%.2f", stats["real_pnl"])

@@ -75,7 +75,7 @@ def run_backtest(config_path='config.yml'):
     }
 
     strategy_instance = results[0]
-    metrics_df = pd.DataFrame(strategy_instance.metrics_buffer)
+    metrics_df = strategy_instance.get_metrics()
 
     trade_df = strat.get_trade_log_df()
     trade_df.to_csv("trade_log.csv", index=False) 
@@ -92,6 +92,9 @@ def run_backtest(config_path='config.yml'):
     plt.show()
 
 
-    return stats, cerebro, metrics_df
+    return metrics_df, stats, cerebro
+
+
+
 
 
