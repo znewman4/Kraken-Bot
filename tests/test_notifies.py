@@ -5,8 +5,7 @@
 import types
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
-
+sys.path.append(str(Path(__file__).resolve().parents[1]))  # repo root
 from datetime import datetime, timedelta
 import math
 import pytest

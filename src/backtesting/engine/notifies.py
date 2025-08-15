@@ -3,6 +3,32 @@ import backtrader as bt
 from datetime import datetime
 import pandas as pd  # used for hold-time calc in notify_trade
 
+
+def _classify_exit(order):
+    """
+    Return 'TP', 'SL', or 'Other' based on the order's exectype.
+    Works both with real Backtrader orders and with test fakes.
+    """
+    # First check for attributes directly on the order (covers fakes and real)
+    if hasattr(order, 'Limit') and order.exectype == order.Limit:
+        return 'TP'
+    if hasattr(order, 'Stop') and order.exectype == order.Stop:
+        return 'SL'
+
+    # Then check against real Backtrader constants if available
+    try:
+        import backtrader as bt
+        if order.exectype == getattr(bt.Order, 'Limit', None):
+            return 'TP'
+        if order.exectype == getattr(bt.Order, 'Stop', None):
+            return 'SL'
+    except ImportError:
+        pass
+
+    return 'Other'
+
+
+
 def notify_order(st, order):
     """
     Exact logic from your Strategy.notify_order, but as a helper.
@@ -23,7 +49,12 @@ def notify_order(st, order):
     now = st.data.datetime.datetime(0).isoformat()
 
     # ---------- ENTRY COMPLETED ----------
-    if st.entry_order is order:
+
+    print("DEBUG notify_order entry match:", st.entry_order is order, st.entry_order, order)
+
+    if (st.entry_order is order) or (
+        hasattr(st.entry_order, 'ref') and st.entry_order.ref == order.ref
+    ): 
         px   = float(order.executed.price)
         sz   = float(order.executed.size)
         atr  = float(st.atr[0])
@@ -67,7 +98,7 @@ def notify_order(st, order):
     # ---------- EXIT (CHILD) COMPLETED ----------
     ex_price = float(order.executed.price)
     ex_size  = float(order.executed.size)
-    reason   = "TP" if order.exectype == bt.Order.Limit else ("SL" if order.exectype == bt.Order.Stop else "Other")
+    reason   = _classify_exit(order)
 
     if st.last_trade_info:
         st.last_trade_info['exit_price']  = ex_price
@@ -108,6 +139,9 @@ def notify_order(st, order):
 
 
 def notify_trade(st, trade):
+
+    print("DEBUG TRADE:", trade.isclosed, trade.size, trade.pnlcomm)
+
     """
     Exact logic from your Strategy.notify_trade, but as a helper.
     """

@@ -1,4 +1,7 @@
 # src/backtesting/strategytest.py
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))  # repo root
 import backtrader as bt
 import pandas as pd
 import numpy as np
@@ -6,36 +9,38 @@ import xgboost as xgb
 from collections import deque
 from datetime import datetime
 from dataclasses import dataclass
-from backtesting.engine.notifies import notifies
-
-@dataclass
-class TradeLogEntry:
-    entry_time: str
-    exit_time: str
-    entry_price: float
-    exit_price: float
-    position_size: float
-    predicted_exp_r: float
-    edge: float
-    volatility: float
-    net_pnl: float
-    pnl_per_unit: float
-    stop_hit: bool
-    take_profit_hit: bool
-    hold_time_mins: float
-    atr: float
-    stop_dist: float
-    tp_dist: float
-    bar_high: float
-    bar_low: float
-    bar_close: float
-    signal: int
-    entry_bar: int
-    exit_bar: int
-    bars_held: int
+from src.backtesting.engine import notifies
 
 
 class KrakenStrategy(bt.Strategy):
+
+    @dataclass
+    class TradeLogEntry:
+        entry_time: str
+        exit_time: str
+        entry_price: float
+        exit_price: float
+        position_size: float
+        predicted_exp_r: float
+        edge: float
+        volatility: float
+        net_pnl: float
+        pnl_per_unit: float
+        stop_hit: bool
+        take_profit_hit: bool
+        hold_time_mins: float
+        atr: float
+        stop_dist: float
+        tp_dist: float
+        bar_high: float
+        bar_low: float
+        bar_close: float
+        signal: int
+        entry_bar: int
+        exit_bar: int
+        bars_held: int
+
+
     params = {
         'config' : None, 
         'enable_timed_exit' : True,
@@ -119,7 +124,9 @@ class KrakenStrategy(bt.Strategy):
 
         # ADDED: place OCO children on the bar AFTER the entry filled -> prevents same-bar TP/SL hits
         if self.children_armed and self.position and self.entry_fill_bar is not None and len(self) > self.entry_fill_bar:
+            print(f"DEBUG: Position size before placing children: {self.position.size}")
             sz = abs(self.position.size)
+            print(f"DEBUG: Child order size: {sz}")
             if self.position.size > 0:
                 self.stop_order  = self.sell(size=sz, exectype=bt.Order.Stop,  price=self.armed_stop)
                 self.limit_order = self.sell(size=sz, exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
@@ -224,7 +231,7 @@ class KrakenStrategy(bt.Strategy):
         This removes same-bar bracket exits.
         """
         if size > 0:
-            self.entry_order = self.buy(size=size)   # market entry
+            self.entry_order = self.buy(size=abs(size))   # market entry
         else:
             self.entry_order = self.sell(size=abs(size))
         self.orders = [self.entry_order]
