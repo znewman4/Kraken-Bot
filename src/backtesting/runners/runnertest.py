@@ -74,10 +74,24 @@ def run_backtest(config_path='config.yml'):
         "real_pnl": total_real_pnl,
     }
 
+    strategy_instance = results[0]
+    metrics_df = pd.DataFrame(strategy_instance.metrics_buffer)
+
     trade_df = strat.get_trade_log_df()
-    trade_df.to_csv("trade_log.csv", index=False)   
+    trade_df.to_csv("trade_log.csv", index=False) 
+
+    import numpy as np
+    print("exp_r mean:", np.mean(strat.exp_returns))
+    print("exp_r std:", np.std(strat.exp_returns))
+    print("exp_r min:", np.min(strat.exp_returns))
+    print("exp_r max:", np.max(strat.exp_returns))
+
+    import matplotlib.pyplot as plt
+    plt.hist(strat.exp_returns, bins=100)
+    plt.title("Distribution of exp_r")
+    plt.show()
 
 
-    return stats, cerebro
+    return stats, cerebro, metrics_df
 
 

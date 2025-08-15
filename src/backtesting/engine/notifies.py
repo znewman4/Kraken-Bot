@@ -174,7 +174,7 @@ def notify_trade(st, trade):
         edge            = float(info['edge']),
         volatility      = float(info['volatility']),
         net_pnl         = pnl,
-        pnl_per_unit    = pnl / float(info['size']) if info['size'] else 0.0,
+        pnl_per_unit = pnl / abs(float(info['size'])) if info['size'] else 0.0,
         stop_hit        = info.get('exit_reason') == 'SL',
         take_profit_hit = info.get('exit_reason') == 'TP',
         hold_time_mins  = hold_min,
@@ -199,3 +199,7 @@ def notify_trade(st, trade):
     st.stop_order      = None
     st.limit_order     = None
     st.orders          = []
+
+    fees_est = st.fee_rate * (abs(info['entry_price']*info['size']) + abs(_exit_px*info['size']))
+    print(f"DEBUG FEES: est={fees_est:.2f}, gross≈{(pnl + fees_est):.2f}, net={pnl:.2f}")
+

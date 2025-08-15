@@ -44,8 +44,8 @@ class KrakenStrategy(bt.Strategy):
     params = {
         'config' : None, 
         'enable_timed_exit' : True,
-        'enable_persistence' : False,
-        'enable_quantile' : False,
+        'enable_persistence' : True,
+        'enable_quantile' : True,
      }
 
     def __init__(self):
@@ -83,6 +83,7 @@ class KrakenStrategy(bt.Strategy):
         self.pnls           = []
 
         # buffers and indicators
+        self.metrics_buffer = []
         self.closes        = []
         self.ret_buffer    = []
         self.exp_returns   = []
@@ -146,6 +147,12 @@ class KrakenStrategy(bt.Strategy):
         exp_r = self._predict_return()
         self.exp_returns.append(exp_r)            
         edge, thr, sig = self._compute_signal(exp_r, vol)
+
+        self._log_bar_metrics(exp_r, edge, vol, sig, thr)
+
+        if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
+            print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
+
 
         self.edge_norms.append(edge)               # <-- keep these lists fresh
         self.thresholds.append(thr)
@@ -257,3 +264,14 @@ class KrakenStrategy(bt.Strategy):
         return {f: self._get_feature_value(f) for f in feats}
 
 
+    def _log_bar_metrics(self, exp_r, edge, vol, sig, thr):
+        """Append per-bar diagnostics for model accuracy analysis."""
+        self.metrics_buffer.append({
+            'datetime': self.data.datetime.datetime(0),
+            'close': float(self.data.close[0]),   
+            'exp_r': exp_r,
+            'edge': edge,
+            'volatility': vol,
+            'signal': sig,
+            'threshold': thr
+        })
