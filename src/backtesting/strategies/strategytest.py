@@ -141,7 +141,7 @@ class KrakenStrategy(bt.Strategy):
         if self._in_flight():
             return
         
-        vol = float(self.std[0])  # trading vol for edge calc (execution logic), not a model feature
+        vol = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
         self._update_buffers()
 
         exp_r = self._predict_return()
@@ -205,7 +205,9 @@ class KrakenStrategy(bt.Strategy):
         return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
 
     def _compute_signal(self, exp_r, vol):
-        edge = exp_r / vol if vol > 0 else 0.0
+        eps = 1e-8
+        vol = max(vol, eps)
+        edge = exp_r / vol
         thr  = (self.fee_rate * self.threshold_mult) / vol if vol > 0 else float('inf')
         sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
         return edge, thr, sig
@@ -288,6 +290,6 @@ class KrakenStrategy(bt.Strategy):
         print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
         if self.metrics_buffer:
             print("DEBUG first metrics row:", self.metrics_buffer[0])
-            
+
         return df
 
