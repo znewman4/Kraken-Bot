@@ -1,6 +1,8 @@
 #run_kraken_strategy.py
 
 import argparse, logging
+import matplotlib
+matplotlib.use("TkAgg")   # or "Qt5Agg" if you have PyQt5 installed
 from config_loader import load_config
 from src.backtesting.runners.runnertest import run_backtest
 
