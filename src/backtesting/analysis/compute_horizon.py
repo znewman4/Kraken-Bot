@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[3]))  
 import pandas as pd
 import numpy as np
-from src.backtesting.runners.runnertest import run_backtest
+from src.backtesting.runners.runner import run_backtest
 
 def extract_flat_stats(stats: dict):
     """Flatten nested Backtrader analyzers into simple keys, safely."""

@@ -54,15 +54,10 @@ class KrakenStrategy(bt.Strategy):
         self.tl     = self.cfg['trading_logic']
         self.last_trade_info = {}  # ADDED: per-trade facts captured at fills
 
-        # load models
-        self.models         = {}
-        self.feature_names  = {}
-        for h, path in self.tl['model_paths'].items():
-            m = xgb.XGBRegressor()
-            m.load_model(path)
-            ih = int(h)
-            self.models[ih]        = m
-            self.feature_names[ih] = m.get_booster().feature_names
+        # precomputed path: no models to load
+        self.models = {}
+        self.feature_names = {}
+        self.pre_col = self.cfg.get('precomputed_col', 'exp_return')  # can be overridden in config/runner
 
         # parameters
         self.max_hold_bars   = int(self.tl.get('max_hold_bars', 29))
@@ -197,12 +192,10 @@ class KrakenStrategy(bt.Strategy):
         self.closes.append(self.data.close[0])
         
     def _predict_return(self):
-        preds = []
-        for h, m in self.models.items():
-            row = self._make_feature_row(h)
-            preds.append(m.predict(pd.DataFrame([row]))[0])
-        weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)[:len(preds)]
-        return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
+        line = getattr(self.data, getattr(self, 'pre_col', 'exp_return'), None)
+        if line is None:
+            raise KeyError(f"Precomputed column '{self.pre_col}' not found on data feed")
+        return float(line[0])
 
     def _compute_signal(self, exp_r, vol):
         eps = 1e-8

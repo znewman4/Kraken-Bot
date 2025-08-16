@@ -14,7 +14,14 @@ def run_backtest(config_path='config.yml'):
 
     print("Loading config from:", config_path)
 
-    config = load_config(config_path)
+    if isinstance(config_path, dict):
+        config = config_path
+        print("Using provided config dict")
+    else:
+        from config_loader import load_config
+        print("Loading config from file:", config_path)
+        config = load_config(config_path)
+
     cerebro = bt.Cerebro()
     cerebro.broker.set_coc(False) 
     cerebro.broker.set_shortcash(True)
@@ -31,7 +38,7 @@ def run_backtest(config_path='config.yml'):
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     df = pd.read_csv(
-        config['data']['backtrader_data_path'],
+        config['data']['feature_data_path'],
         parse_dates=['time']
     )
     df.set_index('time', inplace=True)
@@ -58,7 +65,6 @@ def run_backtest(config_path='config.yml'):
 
     results = cerebro.run()
     strat = results[0]
-    metrics = strat.get_metrics()
     real_trade_pnls = strat.pnls      # list of net PnL from notify_trade()
     total_real_pnl  = sum(real_trade_pnls)
 
@@ -69,16 +75,34 @@ def run_backtest(config_path='config.yml'):
     trade_stats= strat.analyzers.trades.get_analysis()
 
     stats = {
-        "sharpe": sharpe_val,
-        "drawdown": drawdown,
-        "trades": trade_stats,
-        "real_pnl": total_real_pnl,
+        "sharpe": sharpe_val or 0.0,
+        "drawdown": drawdown or 0.0,
+        "trades": trade_stats or {},
+        "real_pnl": total_real_pnl or 0.0,
     }
 
+    strategy_instance = results[0]
+    metrics_df = strategy_instance.get_metrics()
+
     trade_df = strat.get_trade_log_df()
-    trade_df.to_csv("trade_log.csv", index=False)   
+    trade_df.to_csv("trade_log.csv", index=False) 
+
+    import numpy as np
+    print("exp_r mean:", np.mean(strat.exp_returns))
+    print("exp_r std:", np.std(strat.exp_returns))
+    print("exp_r min:", np.min(strat.exp_returns))
+    print("exp_r max:", np.max(strat.exp_returns))
+
+    if config.get("backtest", {}).get("plot", False):
+        import matplotlib.pyplot as plt
+        plt.hist(strat.exp_returns, bins=100)
+        plt.title("Distribution of exp_r")
+        plt.show()
 
 
-    return metrics, stats, cerebro
+    return metrics_df, stats, cerebro
+
+
+
 
 
