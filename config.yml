@@ -2,6 +2,7 @@ data:
   raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
   feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
   backtrader_data_path: "data/features_with_exp_returns.csv"
+  exp_return_parquet_path: data/features_with_exp_returns.parquet
 
 
 exchange:
@@ -27,6 +28,7 @@ backtest:
   commission: 0.0025
   slippage_perc: 0.0002
   max_bars: 1500
+  quiet: true
 
 
 

@@ -9,15 +9,31 @@ from config_loader import load_config
 def run_backtest(config_or_path='config.yml'):
     cfg = config_or_path if isinstance(config_or_path, dict) else load_config(config_or_path)
 
-    pre_path = cfg['data'].get('backtrader_data_path') or cfg['data']['feature_data_path']
-    df = pd.read_csv(pre_path, parse_dates=['time']).set_index('time')
+    # --- CHANGED: prefer Parquet if provided in config ---
+    pre_path = (
+        cfg['data'].get('exp_return_parquet_path')  # NEW
+        or cfg['data'].get('backtrader_data_path')
+        or cfg['data']['feature_data_path']
+    )
 
-    # after reading df
+    # --- CHANGED: read parquet fast (memory-mapped) or fall back to CSV ---
+    if str(pre_path).endswith('.parquet'):
+        df = pd.read_parquet(pre_path, engine='pyarrow', memory_map=True)
+        if df.index.name != 'time':
+            # ensure Backtrader-friendly index
+            if 'time' in df.columns:
+                df = df.set_index('time')
+            df.index.name = 'time'
+    else:
+        df = pd.read_csv(pre_path, parse_dates=['time']).set_index('time')
+        df.index.name = 'time'
+
+    # keep the guard (it’s helpful even with parquet)
     if 'exp_return' not in df.columns:
-        missing = sorted(set(['exp_return']) - set(df.columns))
-        raise ValueError(f"Precomputed runner needs exp_return in CSV. Missing: {missing}. "
-                        f"Got columns: {list(df.columns)[:12]}...")
-
+        raise ValueError(
+            "Precomputed runner needs exp_return in data. "
+            f"Got columns: {list(df.columns)[:12]}..."
+        )
 
     max_bars = cfg['backtest'].get('max_bars')
     if max_bars:
@@ -35,11 +51,7 @@ def run_backtest(config_or_path='config.yml'):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    cerebro.addstrategy(
-        KrakenStrategy,
-        config=cfg,              # pass whole config as before
-        # pre_col default is 'exp_return', but you can override via cfg['precomputed_col']
-    )
+    cerebro.addstrategy(KrakenStrategy, config=cfg)
 
     cerebro.broker.setcommission(commission=cfg['trading_logic']['fee_rate'], leverage=1.0)
     cerebro.broker.set_slippage_perc(
@@ -55,7 +67,6 @@ def run_backtest(config_or_path='config.yml'):
     else:
         results = cerebro.run()
 
-    
     strat = results[0]
 
     # Quiet summaries only
