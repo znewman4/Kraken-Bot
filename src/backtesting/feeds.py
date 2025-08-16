@@ -41,3 +41,8 @@ class EngineeredData(bt.feeds.PandasData):
         ('vwap', -1),
         ('log_return_5', -1),
     )
+
+
+class PrecomputedData(EngineeredData):
+    lines = ('exp_return',)   # add only the new one
+    params = (('exp_return', -1),)

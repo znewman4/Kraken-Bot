@@ -1,7 +1,7 @@
 import backtrader as bt
 import pandas as pd
 from src.backtesting.strategies.strategy_precomputed import KrakenStrategy
-from src.backtesting.feeds import EngineeredData
+from src.backtesting.feeds import PrecomputedData
 from config_loader import load_config
 
 def run_backtest(config_or_path='config.yml'):
@@ -14,7 +14,7 @@ def run_backtest(config_or_path='config.yml'):
     if max_bars:
         df = df.tail(max_bars)
 
-    data = EngineeredData(dataname=df)
+    data = PrecomputedData(dataname=df)
 
     cerebro = bt.Cerebro()
     cerebro.broker.set_coc(False)
