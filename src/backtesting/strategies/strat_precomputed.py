@@ -120,9 +120,9 @@ class KrakenStrategy(bt.Strategy):
 
         # ADDED: place OCO children on the bar AFTER the entry filled -> prevents same-bar TP/SL hits
         if self.children_armed and self.position and self.entry_fill_bar is not None and len(self) > self.entry_fill_bar:
-            print(f"DEBUG: Position size before placing children: {self.position.size}")
+            #print(f"DEBUG: Position size before placing children: {self.position.size}")
             sz = abs(self.position.size)
-            print(f"DEBUG: Child order size: {sz}")
+            #print(f"DEBUG: Child order size: {sz}")
             if self.position.size > 0:
                 self.stop_order  = self.sell(size=sz, exectype=bt.Order.Stop,  price=self.armed_stop)
                 self.limit_order = self.sell(size=sz, exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
@@ -131,7 +131,7 @@ class KrakenStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=sz,  exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
             self.orders = [o for o in (self.stop_order, self.limit_order) if o is not None]
             self.children_armed = False
-            print(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
+            #print(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
 
         if self._in_flight():
             return
@@ -145,8 +145,8 @@ class KrakenStrategy(bt.Strategy):
 
         self._log_bar_metrics(exp_r, edge, vol, sig, thr)
 
-        if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
-            print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
+        # if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
+        #     print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
 
 
         self.edge_norms.append(edge)               # <-- keep these lists fresh
@@ -280,9 +280,9 @@ class KrakenStrategy(bt.Strategy):
         if 'position' not in df.columns:
             df['position'] = 0.0
 
-        print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
-        if self.metrics_buffer:
-            print("DEBUG first metrics row:", self.metrics_buffer[0])
+        #print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
+        # if self.metrics_buffer:
+        #     print("DEBUG first metrics row:", self.metrics_buffer[0])
 
         return df
 

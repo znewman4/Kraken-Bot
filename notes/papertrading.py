@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import backtrader as bt
 from ccxtbt.ccxtstore import CCXTStore
-from src.backtesting.strategies.strategy_precomputed import KrakenStrategy  # or strategy2 if you prefer
+from src.backtesting.strategies.strat_precomputed import KrakenStrategy  # or strategy2 if you prefer
 
 def parse_args():
     p = argparse.ArgumentParser(description="Run live paper-trading on Kraken Futures demo")

@@ -16,10 +16,10 @@ def run_backtest(config_path='config.yml'):
 
     if isinstance(config_path, dict):
         config = config_path
-        print("Using provided config dict")
+        #print("Using provided config dict")
     else:
         from config_loader import load_config
-        print("Loading config from file:", config_path)
+        #print("Loading config from file:", config_path)
         config = load_config(config_path)
 
     cerebro = bt.Cerebro()
@@ -88,10 +88,10 @@ def run_backtest(config_path='config.yml'):
     trade_df.to_csv("trade_log.csv", index=False) 
 
     import numpy as np
-    print("exp_r mean:", np.mean(strat.exp_returns))
-    print("exp_r std:", np.std(strat.exp_returns))
-    print("exp_r min:", np.min(strat.exp_returns))
-    print("exp_r max:", np.max(strat.exp_returns))
+    # print("exp_r mean:", np.mean(strat.exp_returns))
+    # print("exp_r std:", np.std(strat.exp_returns))
+    # print("exp_r min:", np.min(strat.exp_returns))
+    # print("exp_r max:", np.max(strat.exp_returns))
 
     if config.get("backtest", {}).get("plot", False):
         import matplotlib.pyplot as plt

@@ -1,6 +1,8 @@
 import backtrader as bt
+import os
+from contextlib import redirect_stdout, redirect_stderr
 import pandas as pd
-from src.backtesting.strategies.strategy_precomputed import KrakenStrategy
+from src.backtesting.strategies.strat_precomputed import KrakenStrategy
 from src.backtesting.feeds import PrecomputedData
 from config_loader import load_config
 
@@ -9,6 +11,13 @@ def run_backtest(config_or_path='config.yml'):
 
     pre_path = cfg['data'].get('backtrader_data_path') or cfg['data']['feature_data_path']
     df = pd.read_csv(pre_path, parse_dates=['time']).set_index('time')
+
+    # after reading df
+    if 'exp_return' not in df.columns:
+        missing = sorted(set(['exp_return']) - set(df.columns))
+        raise ValueError(f"Precomputed runner needs exp_return in CSV. Missing: {missing}. "
+                        f"Got columns: {list(df.columns)[:12]}...")
+
 
     max_bars = cfg['backtest'].get('max_bars')
     if max_bars:
@@ -39,7 +48,14 @@ def run_backtest(config_or_path='config.yml'):
     )
     cerebro.broker.setcash(cfg['backtest']['cash'])
 
-    results = cerebro.run()
+    quiet = cfg.get('backtest', {}).get('quiet', True)  # default quiet for sweeps
+    if quiet:
+        with open(os.devnull, 'w') as devnull, redirect_stdout(devnull), redirect_stderr(devnull):
+            results = cerebro.run()
+    else:
+        results = cerebro.run()
+
+    
     strat = results[0]
 
     # Quiet summaries only
