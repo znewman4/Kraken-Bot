@@ -24,13 +24,13 @@ cfg_master = load_config("config.yml")
 PARQ_PATH = cfg_master["data"]["exp_return_parquet_path"]  # pass path to workers
 
 # --- your config test grid ---
-quantile_windows      = [50, 100]                      # 2
-entry_quantiles       = [0.85, 0.9]                    # 2
-min_trade_sizes       = [0.01]                         # 1
-threshold_multipliers = [0.25, 0.3, 0.35, 0.4]         # 4
-max_hold_bars         = [50, 75, 100]                  # 3
-stop_loss_mults       = [1.5, 2.0]                     # 2
-take_profit_mults     = [4.0, 6.0, 8.0, 10.0]          # 4
+quantile_windows      = [50, 100]                      
+entry_quantiles       = [0.85, 0.9]                   
+min_trade_sizes       = [0.01]                        
+threshold_multipliers = [0.25, 0.3, 0.35, 0.4]         
+max_hold_bars         = [75, 100]                  
+stop_loss_mults       = [1.5, 2.0]               
+take_profit_mults     = [4.0, 6.0]          
 
 grid = list(itertools.product(
     quantile_windows,
