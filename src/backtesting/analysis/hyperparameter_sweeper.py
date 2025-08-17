@@ -1,24 +1,36 @@
-import argparse, copy, yaml, tempfile, os, sys, itertools
+# hyperparameter_sweeper.py
+import argparse, copy, yaml, tempfile, os, sys, itertools, multiprocessing
 from pathlib import Path    
 sys.path.append(str(Path(__file__).resolve().parents[3]))  # push repo root into path
 
 import pandas as pd
 import numpy as np
 from config_loader import load_config
-from src.backtesting.runners.runner_precomputed import run_backtest   # 🔑 use real backtester
+from joblib import Parallel, delayed
+from src.backtesting.runners.runner_precomputed import run_backtest_df  # <- only need DF path
+
+# ensure logs/ exists in project root
+LOG_DIR = Path(__file__).resolve().parents[3] / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# limit hidden threading inside numeric libs (prevents oversubscription)
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 # Load base config (models already trained + paths set)
 cfg_master = load_config("config.yml")
+PARQ_PATH = cfg_master["data"]["exp_return_parquet_path"]  # pass path to workers
 
-quantile_windows      = [29, 50, 100, 200]
-entry_quantiles       = [0.80, 0.90, 0.95, 0.99]
-threshold_multipliers = [0.01, 0.1, 0.3, 0.5, 1.0]
-min_trade_sizes       = [0.01, 0.02, 0.05]
-
-# new knobs
-max_hold_bars         = [20, 29, 50, 100]
-stop_loss_mults       = [1.5, 2.0, 3.0]
-take_profit_mults     = [3.0, 4.0, 6.0]
+# --- your config test grid ---
+quantile_windows      = [50, 100]                      # 2
+entry_quantiles       = [0.85, 0.9]                    # 2
+min_trade_sizes       = [0.01]                         # 1
+threshold_multipliers = [0.25, 0.3, 0.35, 0.4]         # 4
+max_hold_bars         = [50, 75, 100]                  # 3
+stop_loss_mults       = [1.5, 2.0]                     # 2
+take_profit_mults     = [4.0, 6.0, 8.0, 10.0]          # 4
 
 grid = list(itertools.product(
     quantile_windows,
@@ -30,33 +42,41 @@ grid = list(itertools.product(
     take_profit_mults,
 ))
 
-results = []
+# ---- per-process lazy DataFrame cache ----
+_G_DF = None
+def _get_df():
+    global _G_DF
+    if _G_DF is None:
+        df = pd.read_parquet(PARQ_PATH, engine="pyarrow", memory_map=True)
+        df.index.name = "time"
+        _G_DF = df
+    return _G_DF
 
-for i, (qw, q, mts, thr_mult, hold, sl_mult, tp_mult) in enumerate(grid, 1):
+def run_single_config(i, qw, q, mts, thr_mult, hold, sl_mult, tp_mult, cfg_master):
     cfg = copy.deepcopy(cfg_master)
-    cfg['trading_logic']['quantile_window']   = qw
-    cfg['trading_logic']['entry_quantile']    = q
-    cfg['trading_logic']['min_trade_size']    = mts
-    cfg['trading_logic']['threshold_mult']    = thr_mult
-    cfg['trading_logic']['max_hold_bars']     = hold
-    cfg['trading_logic']['stop_loss_atr_mult']   = sl_mult
-    cfg['trading_logic']['take_profit_atr_mult'] = tp_mult
-
-    print(f"→ [{i}/{len(grid)}] "
-          f"qw={qw}, q={q}, mts={mts}, thr_mult={thr_mult}, "
-          f"hold={hold}, sl_mult={sl_mult}, tp_mult={tp_mult}")
+    tl = cfg['trading_logic']
+    tl['quantile_window']        = qw
+    tl['entry_quantile']         = q
+    tl['min_trade_size']         = mts
+    tl['threshold_mult']         = thr_mult
+    tl['max_hold_bars']          = hold
+    tl['stop_loss_atr_mult']     = sl_mult
+    tl['take_profit_atr_mult']   = tp_mult
+    # keep workers quiet
+    cfg.setdefault('backtest', {})
+    cfg['backtest'].setdefault('quiet', True)
 
     try:
-        _, stats, _ = run_backtest(cfg)
+        df = _get_df()  # each worker loads once, then reuses
+        _, stats, _ = run_backtest_df(df, cfg)
 
         trades   = stats.get('trades', {})
         total_tr = trades.get('total', {}).get('total', 0) if isinstance(trades, dict) else 0
         real_pnl = stats.get('real_pnl', 0.0)
         sharpe   = stats.get('sharpe', np.nan)
 
-        print(f"    ✅ Trades={total_tr}, PnL={real_pnl:.2f}, Sharpe={sharpe:.4f}")
-
-        results.append({
+        # return result dict (no global mutation)
+        return {
             'quantile_window': qw,
             'entry_quantile':  q,
             'min_trade_size':  mts,
@@ -67,21 +87,44 @@ for i, (qw, q, mts, thr_mult, hold, sl_mult, tp_mult) in enumerate(grid, 1):
             'n_trades':        total_tr,
             'total_pnl':       real_pnl,
             'sharpe':          sharpe,
-        })
+        }
     except Exception as e:
-        print(f"    ❌ error: {e}")
+        # surface errors but keep the sweep running
+        return {'error': str(e), 'params': (qw, q, mts, thr_mult, hold, sl_mult, tp_mult)}
 
-# --- Summaries ---
-df = pd.DataFrame(results)
+if __name__ == "__main__":
+    # choose core count; start modest for the 4-config test
+    n_jobs = multiprocessing.cpu_count()
 
-if df.empty:
-    print("\n⚠️ No valid runs")
-else:
-    print("\n=== 📈 Top Configs by Sharpe ===")
-    print(df.sort_values(by="sharpe", ascending=False).head(10).to_string(index=False))
+    # run in parallel (loky backend uses processes by default)
+    parallel_results = Parallel(
+        n_jobs=n_jobs,
+        prefer="processes",
+        batch_size=8,   # group configs per dispatch; tune 4–20 later
+        verbose=10
+    )([
+        delayed(run_single_config)(i, qw, q, mts, thr_mult, hold, sl_mult, tp_mult, cfg_master)
+        for i, (qw, q, mts, thr_mult, hold, sl_mult, tp_mult) in enumerate(grid, 1)
+    ])
 
-    print("\n=== 💰 Top Configs by Total PnL ===")
-    print(df.sort_values(by="total_pnl", ascending=False).head(10).to_string(index=False))
+    # collect
+    results = [r for r in parallel_results if r and not r.get('error')]
+    errors  = [r for r in parallel_results if r and r.get('error')]
 
-    df.to_csv("gridsearch_results.csv", index=False)
-    print("\n✅ Full grid search results saved to gridsearch_results.csv")
+    # --- Summaries ---
+    df = pd.DataFrame(results)
+
+    if df.empty:
+        print("\n⚠️ No valid runs")
+        if errors:
+            print("Errors:", errors[:3], "…")
+    else:
+        print("\n=== 📈 Top Configs by Sharpe ===")
+        print(df.sort_values(by="sharpe", ascending=False).head(10).to_string(index=False))
+
+        print("\n=== 💰 Top Configs by Total PnL ===")
+        print(df.sort_values(by="total_pnl", ascending=False).head(10).to_string(index=False))
+
+        out_file = LOG_DIR / "gridsearch_results.csv"
+        df.to_csv(out_file, index=False)
+        print(f"\n✅ Full grid search results saved to {out_file}")

@@ -2,7 +2,8 @@
 import copy
 import numpy as np
 import pandas as pd
-
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from config_loader import load_config
 from src.backtesting.runners.runner import run_backtest as run_live
 from src.backtesting.runners.runner_precomputed import run_backtest_df as run_pre_df
