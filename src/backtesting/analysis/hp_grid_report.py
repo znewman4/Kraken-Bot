@@ -261,6 +261,7 @@ def main():
     for metric in ("sharpe", "total_pnl"):
         plot_box_by_param(df, metric, outdir)
 
+
     # Heatmaps that matter most for trading decisions
     for metric in ("sharpe", "total_pnl"):
         plot_pair_heatmap(df, "threshold_mult", "max_hold_bars", metric, outdir)
@@ -273,6 +274,7 @@ def main():
         plot_interaction_panels(df, driver="take_profit_mult", facet="stop_loss_mult", metric=metric, outdir=outdir)
 
     print("\n✅ Report complete.")
+
 
 
 if __name__ == "__main__":

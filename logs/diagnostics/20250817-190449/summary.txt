@@ -1,0 +1,15 @@
+29-bar IC (bars): 0.291
+29-bar hit (bars): 59.7% over 5075 bars
+29-bar IC (trades): 0.300
+Hit rate (trades): 42.9%
+Avg PnL/trade: 29.80
+Total PnL: 417.21
+Win rate: 57.1%
+Gate coverage — long: 22.0%, short: 27.2%
+Gate pass on entries: 100.0%
+
+Direction vs Profitability:
+profitable       False  True 
+directional_hit              
+False                2      5
+True                 4      3

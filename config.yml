@@ -27,7 +27,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 1500
+  max_bars: 6000
   quiet: true
 
 
@@ -80,19 +80,19 @@ trading_logic:
     "12": "models/xgb_h12.json"
     "24": "models/xgb_h24.json"
     "48": "models/xgb_h48.json"
-  max_hold_bars: 29
+  max_hold_bars: 75
   horizon_weights: [0.29, 0.56, 0.13, 0.01]
   fee_rate:       0.002
   vol_window:     30
   max_position:   1
-  min_trade_size: 0.01
+  min_trade_size: 0.001
   persistence: 2
-  threshold_mult: 0.5
+  threshold_mult: 0.3
   stop_loss_atr_mult: 2
-  take_profit_atr_mult: 4
+  take_profit_atr_mult: 6
   tick_size: 0.001
-  quantile_window: 300  # shorter lookback
-  entry_quantile: 0.6    
+  quantile_window: 90  # shorter lookback
+  entry_quantile: 0.82   
 
 logging:
   level: INFO
