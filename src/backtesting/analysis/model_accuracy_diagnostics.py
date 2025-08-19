@@ -48,7 +48,7 @@ def savefig(path):
 def main():
     p = argparse.ArgumentParser("H-bar diagnostics (bar & trade level)")
     p.add_argument('-c','--config', default='config.yml', help='Backtest config path')
-    p.add_argument('-b','--bars',   type=int, default=29, help='Horizon H in bars')
+    p.add_argument('-b','--bars',   type=int, default=10, help='Horizon H in bars')
     p.add_argument('--open', action='store_true', help='Open the output folder when done')
     args = p.parse_args()
 
