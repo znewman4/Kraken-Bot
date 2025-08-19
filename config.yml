@@ -92,7 +92,7 @@ trading_logic:
   take_profit_atr_mult: 6
   tick_size: 0.001
   quantile_window: 90  # shorter lookback
-  entry_quantile: 0.82   
+  entry_quantile: 0.75   
 
 logging:
   level: INFO

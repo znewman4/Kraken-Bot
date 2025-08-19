@@ -44,7 +44,7 @@ class KrakenStrategy(bt.Strategy):
     params = {
         'config' : None, 
         'enable_timed_exit' : True,
-        'enable_persistence' : True,
+        'enable_persistence' : False,
         'enable_quantile' : True,
      }
 
