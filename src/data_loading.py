@@ -1,3 +1,4 @@
+#data_loading.py
 import time
 import logging
 from pathlib import Path
@@ -53,14 +54,20 @@ def append_new_ohlcv(pair: str,
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     # set up your exchange
-    symbol    = pair.replace("XBT", "BTC").replace("USD", "/USD")  # "BTC/USD"
-    timeframe = f"{interval}m"
-    limit     = 720
-    exchange  = ccxt.kraken({
+    ex_name  = exchange_cfg.get("name", "kraken").lower()
+    exchange = getattr(ccxt, ex_name)({
         "enableRateLimit": True,
         "session": session,
     })
     exchange.session.verify = certifi.where()
+
+    # per-exchange fetch limits
+    limit_map = {"binance": 1500, "kraken": 720}
+    limit     = limit_map.get(exchange.id.lower(), exchange_cfg.get("limit", 1000))
+
+    symbol    = pair              # <-- pass-through; no replaces
+    timeframe = f"{interval}m"
+
 
     # 1) load existing data
     if file_path.exists():

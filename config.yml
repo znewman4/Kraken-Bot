@@ -1,13 +1,13 @@
 data:
-  raw_data_path:     "data/raw/btc_ohlcv_5min_raw.csv"
-  feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
+  raw_data_path:     "data/raw/btcusdt_5m.csv"
+  feature_data_path: "data/processed/features_btcusdt_5m.csv"
   backtrader_data_path: "data/features_with_exp_returns.csv"
   exp_return_parquet_path: data/features_with_exp_returns.parquet
 
 
 exchange:
-  name: kraken
-  symbol: XBTUSD  
+  name: binance
+  symbol: BTC/USDT  
   name2: krakenfutures
   symbol2:         "BTC/USD:BTC"    
   interval_minute: 5
@@ -27,7 +27,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 6000
+  max_bars: 2500
   quiet: true
 
 
@@ -36,7 +36,9 @@ features:
   indicators:
     - sma: {window: 20}
     - rsi: {window: 14}
+  vwap_windows: [20, 96, 288]
   drop_na: true
+
 
 model:
   horizons: [1,12,24,48]

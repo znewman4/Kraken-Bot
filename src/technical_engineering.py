@@ -17,6 +17,13 @@ def add_technical_indicators(df, features_cfg):
     Returns:
         pd.DataFrame: Data with added features
     """
+
+
+    # at the start of add_technical_indicators(...)
+    for c in ["open","high","low","close","volume","vwap","count"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
     df = df.copy()
 
     # EMA and SMA
@@ -37,6 +44,9 @@ def add_technical_indicators(df, features_cfg):
     # Bollinger Bands
     bb = ta.bbands(df['close'], length=20, std=2)
     df = df.join(bb)
+
+    vwap_windows = features_cfg.get("vwap_windows", [20, 96, 288])
+    df = add_vwap_and_count_features(df, windows=vwap_windows)
 
     return df
 
@@ -63,3 +73,62 @@ def add_return_features(df, features_cfg):
     df['volatility_5'] = df['log_return'].rolling(window=5).std().shift(1)
 
     return df
+
+
+def add_vwap_and_count_features(df: pd.DataFrame,
+                                windows=(20, 96, 288),
+                                use_fallback_when_missing=True) -> pd.DataFrame:
+    """
+    Adds:
+      vwap_{w}           : rolling VWAP over window w (uses provided 'vwap' if present, else fallback)
+      close_to_vwap_{w}  : (close - vwap_{w}) / vwap_{w}
+      vwap_slope_{w}     : pct change of vwap_{w} over w bars
+      log_count          : log1p(count) (only if 'count' present)
+      avg_trade_size     : volume / count (only if 'count' present)
+      count_z_{w}        : z-score of count over window w (only if 'count' present)
+    All engineered cols are shifted by 1 to avoid lookahead.
+    """
+    out = df.copy()
+
+    # Make sure base cols numeric
+    for c in ["open","high","low","close","volume"]:
+        if c in out.columns:
+            out[c] = pd.to_numeric(out[c], errors="coerce")
+
+    # Base "per-bar" vwap series to roll on:
+    # If exchange gave 'vwap', start from that; otherwise build a proxy from typical price.
+    if "vwap" in out.columns and not out["vwap"].isna().all():
+        vwap_bar = pd.to_numeric(out["vwap"], errors="coerce")
+    else:
+        # Typical price approximates intra-bar vwap reasonably
+        tp = (out["high"] + out["low"] + out["close"]) / 3.0
+        vwap_bar = tp
+
+    # Rolling VWAP (volume-weighted) per window
+    for w in windows:
+        vol_sum = out["volume"].rolling(w, min_periods=w).sum()
+        val_sum = (vwap_bar * out["volume"]).rolling(w, min_periods=w).sum()
+        vwap_w  = val_sum / vol_sum
+
+        out[f"vwap_{w}"] = vwap_w
+        out[f"close_to_vwap_{w}"] = (out["close"] - vwap_w) / vwap_w
+        out[f"vwap_slope_{w}"] = vwap_w.pct_change(w)
+
+    # COUNT-based features ONLY if count exists (Kraken)
+    if "count" in out.columns and not out["count"].isna().all():
+        out["count"] = pd.to_numeric(out["count"], errors="coerce")
+        c = out["count"].replace({0: np.nan})
+
+        out["log_count"] = np.log1p(out["count"])
+        out["avg_trade_size"] = out["volume"] / c
+
+        for w in windows:
+            mu = out["count"].rolling(w, min_periods=w).mean()
+            sd = out["count"].rolling(w, min_periods=w).std()
+            out[f"count_z_{w}"] = (out["count"] - mu) / sd
+
+    # No lookahead
+    new_cols = [col for col in out.columns if col not in df.columns]
+    out[new_cols] = out[new_cols].shift(1)
+
+    return out

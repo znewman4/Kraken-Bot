@@ -5,7 +5,7 @@
 import backtrader as bt
 import pandas as pd
 from src.backtesting.strategies.strategy import KrakenStrategy
-from src.backtesting.feeds import EngineeredData
+from src.backtesting.feeds import make_dynamic_pandasdata
 from config_loader import load_config
 
 
@@ -48,8 +48,12 @@ def run_backtest(config_path='config.yml'):
     if max_bars:
         df = df.tail(max_bars)
 
-    data = EngineeredData(dataname=df)
-    cerebro.adddata(data)
+
+
+    DataCls = make_dynamic_pandasdata(df)
+    data = DataCls(dataname=df)
+
+    cerebro.adddata(data)    
 
     cerebro.addstrategy(KrakenStrategy, config=config)
     cerebro.broker.setcommission(
@@ -68,7 +72,6 @@ def run_backtest(config_path='config.yml'):
     real_trade_pnls = strat.pnls      # list of net PnL from notify_trade()
     total_real_pnl  = sum(real_trade_pnls)
 
-    
     sharpe_dict = strat.analyzers.sharpe.get_analysis()
     sharpe_val  = sharpe_dict.get('sharperatio', None)
     drawdown   = strat.analyzers.drawdown.get_analysis()

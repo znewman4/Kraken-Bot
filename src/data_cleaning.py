@@ -43,4 +43,18 @@ def validate_ohlcv(df):
             raise ValueError(f"Missing column: {col}")
     if not pd.api.types.is_datetime64_any_dtype(df.index):
         raise TypeError("Index must be datetime.")
+    
+    #anomalie detection
+    if (df['high'] < df['low']).any():
+        raise ValueError("Found bar where high < low.")
+    if (df['volume'] < 0).any():
+        raise ValueError("Negative volume detected.")
+    
+    #gap detection
+    expected_freq = pd.Timedelta("5min")
+    gaps = df.index.to_series().diff().gt(expected_freq)
+    if gaps.any():
+        print(f"Warning: {gaps.sum()} missing bars detected")
+
+
 

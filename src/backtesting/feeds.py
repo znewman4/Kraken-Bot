@@ -1,6 +1,56 @@
 # src/backtesting/feeds.py
 import backtrader as bt
 
+
+
+import re
+import backtrader as bt
+
+# src/backtesting/feeds.py
+import re
+import backtrader as bt
+
+BASE_COLS = {'open','high','low','close','volume','openinterest'}
+
+def _to_attr(name: str) -> str:
+    # normalize to a valid python identifier used by Backtrader
+    s = re.sub(r'\W+', '_', str(name))   # dots -> underscores, remove other symbols
+    if re.match(r'^\d', s):
+        s = '_' + s
+    return s.lower()                     # LOWERCASE so it matches strategy expectation
+
+def make_dynamic_pandasdata(df, keep_cols=None):
+    cols = list(df.columns) if keep_cols is None else [c for c in df.columns if c in keep_cols]
+
+    mappings = []
+    for col in cols:
+        if str(col).lower() in BASE_COLS:
+            continue
+        line_name = _to_attr(col)        # <<< normalized attr name
+        mappings.append((line_name, col)) # map line -> original df column
+
+    class DynamicEngineeredData(bt.feeds.PandasData):
+        lines = tuple([ln for ln, _ in mappings])
+        params = (
+            ('datetime', None),
+            ('open', 'open'),
+            ('high', 'high'),
+            ('low', 'low'),
+            ('close', 'close'),
+            ('volume', 'volume'),
+            ('openinterest', -1),
+        ) + tuple((ln, col) for ln, col in mappings)
+
+    return DynamicEngineeredData
+
+
+
+
+
+
+
+
+
 class EngineeredData(bt.feeds.PandasData):
     lines = (
         'ema_10', 'sma_10', 'rsi_14',

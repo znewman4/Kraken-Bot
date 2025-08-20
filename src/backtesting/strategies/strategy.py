@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # repo root
+
 import backtrader as bt
 import pandas as pd
 import numpy as np
@@ -10,6 +11,7 @@ from collections import deque
 from datetime import datetime
 from dataclasses import dataclass
 from src.backtesting.engine import notifies
+from src.backtesting.engine.feature_bridge import FeatureBridge   # ← NEW
 
 
 class KrakenStrategy(bt.Strategy):
@@ -40,29 +42,26 @@ class KrakenStrategy(bt.Strategy):
         exit_bar: int
         bars_held: int
 
-
     params = {
-        'config' : None, 
-        'enable_timed_exit' : True,
-        'enable_persistence' : False,
-        'enable_quantile' : True,
-     }
+        'config': None,
+        'enable_timed_exit': True,
+        'enable_persistence': False,
+        'enable_quantile': True,
+    }
 
     def __init__(self):
-        # --- CONFIG & MODELS ---
-        self.cfg    = self.p.config
-        self.tl     = self.cfg['trading_logic']
-        self.last_trade_info = {}  # ADDED: per-trade facts captured at fills
+        # --- CONFIG ---
+        self.cfg = self.p.config
+        self.tl  = self.cfg['trading_logic']
+        self.last_trade_info = {}
 
-        # load models
-        self.models         = {}
-        self.feature_names  = {}
+        # --- MODELS ---
+        self.models = {}
         for h, path in self.tl['model_paths'].items():
+            ih = int(h)
             m = xgb.XGBRegressor()
             m.load_model(path)
-            ih = int(h)
-            self.models[ih]        = m
-            self.feature_names[ih] = m.get_booster().feature_names
+            self.models[ih] = m
 
         # parameters
         self.max_hold_bars   = int(self.tl.get('max_hold_bars', 29))
@@ -84,37 +83,46 @@ class KrakenStrategy(bt.Strategy):
 
         # buffers and indicators
         self.metrics_buffer = []
-        self.closes        = []
-        self.ret_buffer    = []
-        self.exp_returns   = []
-        self.edge_norms    = []
-        self.thresholds    = []
-        self.signals       = []
-        self.signal_buffer = deque(maxlen=self.tl.get('persistence', 1))
+        self.closes         = []
+        self.ret_buffer     = []
+        self.exp_returns    = []
+        self.edge_norms     = []
+        self.thresholds     = []
+        self.signals        = []
+        self.signal_buffer  = deque(maxlen=self.tl.get('persistence', 1))
 
-        self.atr = bt.indicators.ATR(self.data, period=self.tl.get('atr_period',14))
+        self.atr = bt.indicators.ATR(self.data, period=self.tl.get('atr_period', 14))
         self.sma = bt.indicators.SMA(self.data.close,
-                                     period=self.cfg.get('features',{}).get('sma_window',20))
+                                     period=self.cfg.get('features', {}).get('sma_window', 20))
         self.rsi = bt.indicators.RSI(self.data.close,
-                                     period=self.cfg.get('features',{}).get('rsi_window',14))
+                                     period=self.cfg.get('features', {}).get('rsi_window', 14))
         self.tp_buffer  = deque(maxlen=self.vol_window)
         self.vol_buffer = deque(maxlen=self.vol_window)
         self.std        = bt.indicators.StdDev(self.data.close, period=self.vol_window)
 
         print(f"{datetime.utcnow().isoformat()} - KrakenStrategy initialized")
 
-        # ADDED: state for deferred OCO children (prevents same-bar exits)
+        # state for deferred OCO children
         self.entry_order    = None
         self.stop_order     = None
         self.limit_order    = None
-        self.children_armed = False   # True right after entry fills; children placed next bar
-        self.entry_bar      = None    # bar index at entry
-        self.entry_fill_bar = None    # bar index when broker reports entry Completed
-        self.pending_exit_reason = None  # reason to use when we intentionally flatten
+        self.children_armed = False
+        self.entry_bar      = None
+        self.entry_fill_bar = None
+        self.pending_exit_reason = None
 
+        # 🔗 Build the feature bridge (does parity checks & mapping)
+        self.bridge = FeatureBridge(
+            bt_data=self.data,
+            models_by_horizon=self.models,
+            model_paths=self.tl['model_paths'],
+            verbose=True
+        )
+
+    # -------- Backtrader plumbing --------
     def notify_order(self, order):
         return notifies.notify_order(self, order)
-    
+
     def notify_trade(self, trade):
         return notifies.notify_trade(self, trade)
 
@@ -123,11 +131,8 @@ class KrakenStrategy(bt.Strategy):
         if self.p.enable_timed_exit:
             self._check_timed_exit()
 
-        # ADDED: place OCO children on the bar AFTER the entry filled -> prevents same-bar TP/SL hits
         if self.children_armed and self.position and self.entry_fill_bar is not None and len(self) > self.entry_fill_bar:
-            #print(f"DEBUG: Position size before placing children: {self.position.size}")
             sz = abs(self.position.size)
-            #print(f"DEBUG: Child order size: {sz}")
             if self.position.size > 0:
                 self.stop_order  = self.sell(size=sz, exectype=bt.Order.Stop,  price=self.armed_stop)
                 self.limit_order = self.sell(size=sz, exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
@@ -136,25 +141,21 @@ class KrakenStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=sz,  exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
             self.orders = [o for o in (self.stop_order, self.limit_order) if o is not None]
             self.children_armed = False
-            #print(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
 
         if self._in_flight():
             return
-        
+
         vol = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
         self._update_buffers()
 
+        # ⭐️ Call into the bridge for aligned prediction
         exp_r = self._predict_return()
-        self.exp_returns.append(exp_r)            
+        self.exp_returns.append(exp_r)
         edge, thr, sig = self._compute_signal(exp_r, vol)
 
         self._log_bar_metrics(exp_r, edge, vol, sig, thr)
 
-        # if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
-        #     print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
-
-
-        self.edge_norms.append(edge)               # <-- keep these lists fresh
+        self.edge_norms.append(edge)
         self.thresholds.append(thr)
         self.signals.append(sig)
         self.signal_buffer.append(sig)
@@ -165,15 +166,15 @@ class KrakenStrategy(bt.Strategy):
             return
         if self.p.enable_quantile and not self._pass_quantile(exp_r, sig):
             return
-        
+
         size = self._size_position(edge, sig)
         if size is None:
             return
-        
+
         price = float(self.data.close[0])
         self._place_bracket(size, price)
 
-    # helper methods
+    # -------- Helpers --------
     def _clear_stale_orders(self):
         if self.orders and not self.position:
             self.orders = []
@@ -182,7 +183,7 @@ class KrakenStrategy(bt.Strategy):
         if self.position and hasattr(self, 'last_trade_info') and 'entry_bar' in self.last_trade_info:
             bars_held = len(self) - self.last_trade_info['entry_bar']
             if bars_held >= self.max_hold_bars:
-                for o in list(self.orders): 
+                for o in list(self.orders):
                     self.cancel(o)
                 self.orders = []
                 self.pending_exit_reason = "Timed"
@@ -190,20 +191,18 @@ class KrakenStrategy(bt.Strategy):
 
     def _in_flight(self):
         return bool(self.position or self.orders)
-    
+
     def _update_buffers(self):
         prev_close = self.closes[-1] if self.closes else self.data.close[0]
         self.ret_buffer.append((self.data.close[0] - prev_close) / prev_close if prev_close else 0.0)
         self.closes.append(self.data.close[0])
-        
-    def _predict_return(self):
-        preds = []
-        for h, m in self.models.items():
-            row = self._make_feature_row(h)
-            preds.append(m.predict(pd.DataFrame([row]))[0])
-        weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)[:len(preds)]
-        return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
 
+    # ==== delegate to FeatureBridge ====
+    def _predict_return(self) -> float:
+        weights = self.cfg['trading_logic']['horizon_weights']
+        return self.bridge.predict_return(weights)
+
+    # ==== signals/sizing/logging (unchanged) ====
     def _compute_signal(self, exp_r, vol):
         eps = 1e-8
         vol = max(vol, eps)
@@ -224,7 +223,6 @@ class KrakenStrategy(bt.Strategy):
         return not ((sig == 1 and exp_r < long_thr) or (sig == -1 and exp_r > short_thr))
 
     def _size_position(self, edge, sig):
-        # sizing logic unchanged
         recent = self.edge_norms[-50:]
         ref = np.percentile(np.abs(recent), 90) if recent else 1e-4
         size_fac = min(abs(edge) / max(ref, 1e-4), 1.0) * self.max_position * sig
@@ -234,13 +232,8 @@ class KrakenStrategy(bt.Strategy):
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 
     def _place_bracket(self, size, price):
-        """
-        CHANGED: ENTRY-ONLY. We deliberately do NOT submit children here.
-        Children are armed in notify_order at entry fill and submitted next bar in next().
-        This removes same-bar bracket exits.
-        """
         if size > 0:
-            self.entry_order = self.buy(size=abs(size))   # market entry
+            self.entry_order = self.buy(size=abs(size))
         else:
             self.entry_order = self.sell(size=abs(size))
         self.orders = [self.entry_order]
@@ -248,29 +241,10 @@ class KrakenStrategy(bt.Strategy):
     def get_trade_log_df(self):
         return pd.DataFrame([t.__dict__ for t in self.trade_log])
 
-    def _get_feature_value(self, feat_name: str) -> float:
-        """
-        Read feature from EngineeredData feed.
-        - lower-case
-        - replace '.' with '_' to match feed line names
-        """
-        lf = feat_name.lower()
-        attr = lf.replace('.', '_')
-        line = getattr(self.data, attr, None) or getattr(self.data, lf, None)
-        if line is None:
-            raise KeyError(f"Missing feature '{feat_name}' (tried '{attr}'). Check EngineeredData lines/params.")
-        return float(line[0])
-
-    def _make_feature_row(self, h: int):
-        feats = self.feature_names[h]  # use horizon-specific features from the booster
-        return {f: self._get_feature_value(f) for f in feats}
-
-
     def _log_bar_metrics(self, exp_r, edge, vol, sig, thr):
-        """Append per-bar diagnostics for model accuracy analysis."""
         self.metrics_buffer.append({
             'datetime': self.data.datetime.datetime(0),
-            'close': float(self.data.close[0]),   
+            'close': float(self.data.close[0]),
             'exp_r': exp_r,
             'edge': edge,
             'volatility': vol,
@@ -279,17 +253,8 @@ class KrakenStrategy(bt.Strategy):
         })
 
     def get_metrics(self):
-        import pandas as pd
         df = pd.DataFrame(self.metrics_buffer)
-        # Rename to match old schema
         df = df.rename(columns={'exp_r': 'exp_return', 'edge': 'edge_norm'})
-        # Ensure required columns exist
         if 'position' not in df.columns:
             df['position'] = 0.0
-
-        # print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
-        # if self.metrics_buffer:
-        #     print("DEBUG first metrics row:", self.metrics_buffer[0])
-
         return df
-
