@@ -27,7 +27,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 6000
+  max_bars: 10000
   quiet: true
 
 
