@@ -5,6 +5,7 @@ import json
 import re
 from typing import Dict, List, Optional, Iterable
 import pandas as pd
+import numpy as np
 
 
 def _normalize_name(name: str) -> str:
@@ -36,6 +37,9 @@ class FeatureBridge:
         if not isinstance(self.df, pd.DataFrame):
             self.df = None
 
+        self.strict_df = strict_df
+
+
         # store references
         self.models = models_by_horizon
         self.model_paths = model_paths
@@ -52,22 +56,39 @@ class FeatureBridge:
 
         self._preflight_feature_parity(verbose=verbose)
 
-    # ---------- Public API ----------
-    def predict_return(self, weights: Iterable[float]) -> float:
-        """Combine per-horizon predictions using provided weights (truncated/padded if needed)."""
+    def predict_return(self, weights):
+        dt = self.bt_data.datetime.datetime(0)
         preds = []
         horizons = sorted(self.models.keys())
+
         for h in horizons:
-            row = self._make_feature_row(h)  # dict keyed by trained names
             feats_in_order = self.trained_feats[h]
-            X = pd.DataFrame([[row[f] for f in feats_in_order]], columns=feats_in_order)
-            pred = self.models[h].predict(X)[0]
+
+            if self.strict_df:
+                # === OLD METHOD: use DF ONLY, EXACT TRAINED NAMES/ORDER ===
+                if self.df is None:
+                    raise RuntimeError("strict_df=True but no DataFrame found on bt_data.p.dataname")
+                try:
+                    values = [float(self.df.at[dt, f]) for f in feats_in_order]
+                except KeyError as e:
+                    missing = [f for f in feats_in_order if f not in self.df.columns][:8]
+                    raise KeyError(f"[strict_df] Missing feature(s) at {dt}. Example missing: {missing}") from e
+            else:
+                # === current bridge path (mixed feed/df) ===
+                row = self._make_feature_row(h)
+                values = [row[f] for f in feats_in_order]
+
+            X = pd.DataFrame([values], columns=feats_in_order)
+            pred = float(self.models[h].predict(X)[0])
             preds.append(pred)
+            # (optional) quick print to verify scale
+            # print(f"[exp_r][{dt}][h={h}] {pred:.8f}")
 
         w = list(weights)[:len(preds)]
-        if not w or sum(w) == 0:
-            return float(sum(preds) / max(len(preds), 1))
-        return float(sum(p * wi for p, wi in zip(preds, w)) / sum(w))
+        out = float(sum(preds) / max(len(preds), 1)) if (not w or sum(w) == 0) \
+            else float(sum(p * wi for p, wi in zip(preds, w)) / sum(w))
+        # print(f"[exp_r][{dt}][combined] {out:.8f}")
+        return out
 
     # ---------- Internals ----------
     def _load_feature_list(self, h: int, model) -> List[str]:
