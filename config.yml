@@ -6,8 +6,8 @@ data:
 
 
 exchange:
-  name: kraken
-  symbol: XBTUSD  
+  name: binance
+  symbol: BTCUSDT  
   name2: krakenfutures
   symbol2:         "BTC/USD:BTC"    
   interval_minute: 5
@@ -27,7 +27,7 @@ backtest:
   cash:       10000
   commission: 0.0025
   slippage_perc: 0.0002
-  max_bars: 10000
+  max_bars: 3000
   quiet: true
 
 
@@ -87,12 +87,12 @@ trading_logic:
   max_position:   1
   min_trade_size: 0.001
   persistence: 2
-  threshold_mult: 0.3
+  threshold_mult: 0.4
   stop_loss_atr_mult: 2
   take_profit_atr_mult: 6
   tick_size: 0.001
-  quantile_window: 90  # shorter lookback
-  entry_quantile: 0.75   
+  quantile_window: 150  # shorter lookback
+  entry_quantile: 0.85   
 
 logging:
   level: INFO

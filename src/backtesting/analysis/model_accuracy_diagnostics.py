@@ -89,6 +89,10 @@ def main():
         f"{H}-bar hit (bars): {hit_bar:.1%} over {len(db)} bars",
     ]
 
+
+    #rolling window plot
+    plot_rolling_ic_hit(dfm, outdir, window=50)
+
     # 3) Load full price series (for trade-level realized H-bar return)
     cfg = load_config(args.config)
     price_path = cfg['data']['feature_data_path']
@@ -312,6 +316,31 @@ def main():
         except Exception as e:
             print(f"(Could not auto-open folder: {e})")
 
+    
+
+def plot_rolling_ic_hit(dfm, outdir, window=50):
+        """
+        Plot rolling IC and hit rate over a given window size.
+        """
+        # Only use bars with both prediction and realized return
+        db = dfm.dropna(subset=['exp_r','real_horizon_ret']).copy()
+
+        roll_ic = db['exp_r'].rolling(window).corr(db['real_horizon_ret'])
+        roll_hit = (
+            (np.sign(db['exp_r']) == np.sign(db['real_horizon_ret']))
+            .astype(float)
+            .rolling(window).mean()
+        )
+
+        plt.figure(figsize=(12,6))
+        plt.plot(db.index, roll_ic, label=f"Rolling IC ({window} bars)", alpha=0.9)
+        plt.plot(db.index, roll_hit, label=f"Rolling Hit Rate ({window} bars)", alpha=0.9)
+        plt.axhline(0, color="k", linestyle="--", linewidth=1)
+        plt.legend()
+        plt.title(f"Rolling IC & Hit Rate (window={window})")
+        plt.xlabel("Time")
+        plt.ylabel("Value")
+        savefig(outdir / "rolling_ic_hit.png")
 
 if __name__ == '__main__':
     main()

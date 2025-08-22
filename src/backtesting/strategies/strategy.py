@@ -44,7 +44,7 @@ class KrakenStrategy(bt.Strategy):
     params = {
         'config' : None, 
         'enable_timed_exit' : True,
-        'enable_persistence' : False,
+        'enable_persistence' : True,
         'enable_quantile' : True,
      }
 
@@ -208,8 +208,14 @@ class KrakenStrategy(bt.Strategy):
         eps = 1e-8
         vol = max(vol, eps)
         edge = exp_r / vol
-        thr  = (self.fee_rate * self.threshold_mult) / vol if vol > 0 else float('inf')
+        thr  = (self.fee_rate * self.threshold_mult)
         sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
+
+        # --- DEBUG ---
+        if np.random.rand() < 0.001:  # sample 0.1% of bars to avoid spam
+            print(f"[DEBUG] exp_r={exp_r:.6f}, vol={vol:.6f}, edge={edge:.3f}, thr={thr:.3f}, sig={sig}")
+
+
         return edge, thr, sig
 
     def _pass_persistence(self, sig):
@@ -231,6 +237,13 @@ class KrakenStrategy(bt.Strategy):
         cash = self.broker.getcash()
         raw = (cash * size_fac) / self.data.close[0]
         size = min(round(raw, 8), cash / self.data.close[0])
+
+        # --- DEBUG ---
+        if np.random.rand() < 0.001:
+            print(f"[DEBUG] edge={edge:.3f}, ref={ref:.3f}, size_fac={size_fac:.4f}, raw={raw:.6f}, size={size}")
+
+
+
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 
     def _place_bracket(self, size, price):
