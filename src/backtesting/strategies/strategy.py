@@ -208,7 +208,7 @@ class KrakenStrategy(bt.Strategy):
         eps = 1e-8
         vol = max(vol, eps)
         edge = exp_r / vol
-        thr  = (self.fee_rate * self.threshold_mult)
+        thr  = (self.fee_rate * self.threshold_mult) / vol
         sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
 
         # --- DEBUG ---
