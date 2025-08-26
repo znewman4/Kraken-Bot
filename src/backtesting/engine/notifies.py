@@ -50,7 +50,7 @@ def notify_order(st, order):
 
     # ---------- ENTRY COMPLETED ----------
 
-    print("DEBUG notify_order entry match:", st.entry_order is order, st.entry_order, order)
+    #print("DEBUG notify_order entry match:", st.entry_order is order, st.entry_order, order)
 
     if (st.entry_order is order) or (
         hasattr(st.entry_order, 'ref') and st.entry_order.ref == order.ref
@@ -140,7 +140,7 @@ def notify_order(st, order):
 
 def notify_trade(st, trade):
 
-    print("DEBUG TRADE:", trade.isclosed, trade.size, trade.pnlcomm)
+    #print("DEBUG TRADE:", trade.isclosed, trade.size, trade.pnlcomm)
 
     """
     Exact logic from your Strategy.notify_trade, but as a helper.
@@ -201,5 +201,5 @@ def notify_trade(st, trade):
     st.orders          = []
 
     fees_est = st.fee_rate * (abs(info['entry_price']*info['size']) + abs(_exit_px*info['size']))
-    print(f"DEBUG FEES: est={fees_est:.2f}, gross≈{(pnl + fees_est):.2f}, net={pnl:.2f}")
+    #print(f"DEBUG FEES: est={fees_est:.2f}, gross≈{(pnl + fees_est):.2f}, net={pnl:.2f}")
 

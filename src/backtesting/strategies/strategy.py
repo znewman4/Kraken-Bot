@@ -76,7 +76,7 @@ class KrakenStrategy(bt.Strategy):
         self.min_trade_size  = float(self.tl.get('min_trade_size', 0.01))
         self.max_position    = float(self.tl.get('max_position', 1.0))
         self.tick_size       = float(self.tl.get('tick_size', 0.01))
-
+        self.min_edge_bps      = float(self.tl.get('min_edge_bps', 0.0)) / 10000.0  # convert bps to decimal
         # state & logs
         self.trade_log      = []
         self.orders         = []
@@ -151,7 +151,7 @@ class KrakenStrategy(bt.Strategy):
         self._log_bar_metrics(exp_r, edge, vol, sig, thr)
 
         # if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
-        #     print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
+        #print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
 
 
         self.edge_norms.append(edge)               # <-- keep these lists fresh
@@ -207,12 +207,23 @@ class KrakenStrategy(bt.Strategy):
     def _compute_signal(self, exp_r, vol):
         eps = 1e-8
         vol = max(vol, eps)
-        edge = exp_r / vol
-        thr  = (self.fee_rate * self.threshold_mult) / vol
+
+        fees = self.fee_rate * 2  # round-trip
+
+        eff_exp = exp_r - np.sign(exp_r) * fees
+
+        if self.min_edge_bps > 0 and abs(eff_exp) < self.min_edge_bps:
+            return 0.0, np.nan, 0
+        
+        edge = eff_exp / vol
+
+        thr_cost = fees / vol
+        thr = thr_cost * float(self.threshold_mult)
+
         sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
 
         # --- DEBUG ---
-        if np.random.rand() < 0.001:  # sample 0.1% of bars to avoid spam
+        if np.random.rand() < 0.1:  # sample 10% of bars to avoid spam
             print(f"[DEBUG] exp_r={exp_r:.6f}, vol={vol:.6f}, edge={edge:.3f}, thr={thr:.3f}, sig={sig}")
 
 
@@ -304,5 +315,10 @@ class KrakenStrategy(bt.Strategy):
         # if self.metrics_buffer:
         #     print("DEBUG first metrics row:", self.metrics_buffer[0])
 
+
         return df
+    
+    def _dbg(self, msg):
+        if self.cfg.get("backtest", {}).get("debug", False):
+            print(msg)
 

@@ -21,7 +21,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from config_loader import load_config
 from src.modeling import prepare_features_and_target
 from src.training import run_tuning, run_training_pipeline
-from src.backtesting.runners.runner import run_backtest
+from src.backtesting.runners.runner_slice import run_backtest_df
 
 def weeks_to_bars(weeks: int, interval_minute: int) -> int:
     # Crypto is 24/7; 7*24*60/interval bars per week
@@ -141,7 +141,7 @@ def main():
     k = 0
     while i + test_bars <= n:
         k += 1
-        train_start = 0
+        train_start = i - train_bars
         train_end   = i
         test_start  = i
         test_end    = i + test_bars
@@ -215,8 +215,9 @@ def main():
             print(f"[saved] h={h} model → {out_path}")
 
         # --- Backtest with the freshly overwritten models ---
-        metrics_df, stats, _cerebro = run_backtest(args.config)
-
+        df_test_bt = df_test.set_index("__dt__")
+        df_test_bt.index.name = "time"
+        metrics_df, stats, _ = run_backtest_df(df_test_bt, cfg)
 
         # --- summarize backtest stats for printing & summary_rows ---
         sharpe   = stats.get("sharpe", np.nan)

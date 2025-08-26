@@ -43,10 +43,20 @@ def run_backtest(config_path='config.yml'):
     )
     df.set_index('time', inplace=True)
 
-    # now optionally slice to first N bars:
+
+    # in run_backtest(), after reading df:
+    bt_cfg = config.get('backtest', {})
+    start = bt_cfg.get('start_date')  # e.g., "2025-06-01"
+    end   = bt_cfg.get('end_date')    # exclusive
     max_bars = config['backtest'].get('max_bars')
-    if max_bars:
-        df = df.tail(max_bars)
+
+
+    if start:
+        df = df[df.index >= pd.to_datetime(start)]
+    if end:
+        df = df[df.index < pd.to_datetime(end)]
+
+    
 
     data = EngineeredData(dataname=df)
     cerebro.adddata(data)
