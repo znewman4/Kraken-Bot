@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from config_loader import load_config
-from src.data_loading import append_new_ohlcv
+from src import bulk_download
 from src.data_cleaning import clean_ohlcv, validate_ohlcv
 from src.technical_engineering import add_technical_indicators, add_return_features
 from src.modeling import prepare_features_and_target
@@ -51,24 +51,49 @@ def main():
     logger.info("Loaded config, starting up")
 
     # ─── Data Pipeline ──────────────────────────────────────────────────────
-    pair = cfg['exchange']['symbol']
     interval = cfg['exchange']['interval_minute']
     raw_path = Path(cfg['data']['raw_data_path'])
     proc_path = Path(cfg['data']['feature_data_path'])
 
-    df = append_new_ohlcv(pair, interval, raw_path, cfg['exchange'])
-    validate_ohlcv(df)
-    df = clean_ohlcv(df, cfg['data'])
-    validate_ohlcv(df)
+    bulk_download.main()
 
+    # 1) Load raw CSV
+    df = pd.read_csv(raw_path, parse_dates=["time"])
+    df.set_index("time", inplace=True)
+    df.sort_index(inplace=True)
+
+    # 2) Validate raw download
+    validate_ohlcv(df, minutes=interval, label="raw_after_download")
+
+    # 3) Clean and re-validate
+    df = clean_ohlcv(df, cfg['data'])
+    validate_ohlcv(df, minutes=interval, label="cleaned")
+
+    # 4) Feature engineering
     df = add_technical_indicators(df, cfg['features'])
     df = add_return_features(df, cfg['features'])
     if cfg['features'].get('drop_na', True):
         df.dropna(inplace=True)
 
+    # 5) Validate after feature engineering
+    validate_ohlcv(df, minutes=interval, label="after_features")
+
+    # Save engineered dataset
     proc_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(proc_path)
     logger.info("Engineered data saved to %s", proc_path)
+
+
+
+    # ─── Data Slice ────────────────────────────────────────────────────
+    tr_cfg = cfg.get('training', {})
+    start = tr_cfg.get('start_date')  # e.g., "2025-06-01"
+    end   = tr_cfg.get('end_date')    # exclusive
+
+    if start:
+        df = df[df.index >= pd.to_datetime(start)]
+    if end:
+        df = df[df.index < pd.to_datetime(end)]
 
     # ─── Horizon Ensemble Training & Saving ─────────────────────────────────
     for h_str, model_path in cfg['trading_logic']['model_paths'].items():

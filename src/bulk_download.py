@@ -4,6 +4,8 @@ import math
 import time, sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))  
 
@@ -68,6 +70,17 @@ def fetch_binance_klines(symbol: str, interval: str, start_utc: datetime, end_ut
     session = requests.Session()
     session.verify = certifi.where()
 
+    retry = Retry(
+    total=5,                # up to 5 retries
+    backoff_factor=0.5,     # 0.5, 1.0, 2.0, ...
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["GET"],
+    raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
     out_rows: list[list] = []
     start_ms = int(start_utc.timestamp() * 1000)
     end_ms = int(end_utc.timestamp() * 1000)
@@ -80,9 +93,14 @@ def fetch_binance_klines(symbol: str, interval: str, start_utc: datetime, end_ut
             "endTime": end_ms,
             "limit": MAX_LIMIT,
         }
-        r = session.get(BINANCE_REST, params=params, timeout=30)
-        r.raise_for_status()
-        klines = r.json()
+        try:
+            r = session.get(BINANCE_REST, params=params, timeout=30)
+            r.raise_for_status()
+            klines = r.json()
+        except requests.exceptions.ReadTimeout:
+            time.sleep(1.0)
+            continue
+
 
         if not klines:
             break
@@ -169,7 +187,7 @@ def main():
 
     out_csv = Path(data_cfg.get("raw_data_path", "data/raw/btc_ohlcv_5min_raw.csv"))
 
-    symbol_unified = "BTC/USDT"
+    symbol_unified = ex_cfg.get("symbol", "BTC/USDT")   # <— use config, not hard-coded
     symbol_binance = to_binance_symbol(symbol_unified)
 
     minutes = int(ex_cfg.get("interval_minute", 5))
@@ -177,16 +195,21 @@ def main():
 
     # Determine [start, end) window
     last_ts = read_last_timestamp(out_csv)
+
+     # read config start/end dates (if provided)
+    start_date_cfg = data_cfg.get("start_date")
+    end_date_cfg   = data_cfg.get("end_date")
+    start_cfg = pd.to_datetime(start_date_cfg).to_pydatetime().replace(tzinfo=timezone.utc) if start_date_cfg else None
+    end_cfg   = pd.to_datetime(end_date_cfg).to_pydatetime().replace(tzinfo=timezone.utc) if end_date_cfg else None
+
     if last_ts is None:
-        # default: backfill ~90 days (≈ 90d * 24h * 60 / 5m = 25,920 bars)
-        end_utc = datetime.now(tz=timezone.utc).replace(second=0, microsecond=0)
-        start_utc = datetime(2024, 12, 1, tzinfo=timezone.utc)
-        # align to 5-min grid
-        start_utc = start_utc.replace(second=0, microsecond=0)
+        if start_cfg is None:
+                raise ValueError("No existing CSV and no data.start_date set in config.yml")
+        start_utc = start_cfg
+        end_utc   = end_cfg or datetime.now(tz=timezone.utc).replace(second=0, microsecond=0)
     else:
-        # continue from the next bar
         start_utc = ceil_to_next_interval(last_ts, minutes)
-        end_utc = datetime.now(tz=timezone.utc).replace(second=0, microsecond=0)
+        end_utc   = end_cfg or datetime.now(tz=timezone.utc).replace(second=0, microsecond=0)
 
     if start_utc >= end_utc:
         print("No new bars to fetch. ✅")

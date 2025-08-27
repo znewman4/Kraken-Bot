@@ -3,7 +3,8 @@ data:
   feature_data_path: "data/processed/btc_ohlcv_5min_engineered.csv"
   backtrader_data_path: "data/features_with_exp_returns.csv"
   exp_return_parquet_path: data/features_with_exp_returns.parquet
-
+  start_date: "2024-12-01"
+  end_date:   "2025-08-25"
 
 exchange:
   name: binance
@@ -69,6 +70,8 @@ training:
   epochs:         50
   batch_size:     32
   validation_split: 0.2
+  start_date: "2025-06-01"
+  end_date:   "2025-08-25"
 
 selection:
   method: "shap"
