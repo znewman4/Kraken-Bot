@@ -9,29 +9,13 @@ data:
 exchange:
   name: binance
   symbol: BTCUSDT  
-  name2: krakenfutures
   symbol2:         "BTC/USD:BTC"    
   interval_minute: 5
-  endpoint:   "https://demo-futures.kraken.com/derivatives/api/v3"
-  api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
-  api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
-  api_key2: "wuK3YXZZY23yJrbOOX0x62HD2D0g4LyhVI/DZjUX/jkQnj/AbgZTzfct"
-  api_secret2: "WkHi3rGPmuwv0SYjzHODjR+pzmAGED1zbakGfTl8/wdypNchbsAYBa6YBWWtuNRFAz0WGdKMHYIyowJ7yQs3T5y4"
   timeout:    30
   retries:    3       # how many times to retry on transient failures
   retry_backoff: 5    # seconds between retry attempts
-
-
-backtest:
-  start_date: "2025-08-01"
-  end_date:   "2025-08-24"
-  cash:       10000
-  commission: 0.0025
-  slippage_perc: 0.0002
-  max_bars: 3000
-  quiet: false
-  debug: false
-
+  api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
+  api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
 
 
 features:
@@ -78,15 +62,24 @@ selection:
   top_k:    10
 
 
+backtest:
+  start_date: "2025-08-01"
+  end_date:   "2025-08-24"
+  cash:       10000
+  commission: 0.0025
+  slippage_perc: 0.0002
+  max_bars: 3000
+  quiet: false
+
 trading_logic:
   model_paths:
     "1":  "models/xgb_h1.json"
     "12": "models/xgb_h12.json"
     "24": "models/xgb_h24.json"
     "48": "models/xgb_h48.json"
-  max_hold_bars: 50
+  max_hold_bars: 30
   horizon_weights: [0.29, 0.56, 0.13, 0.01]
-  fee_rate:       0.002
+  fee_rate:       0.0001
   vol_window:     30
   max_position:   1
   min_trade_size: 0.01
@@ -94,11 +87,12 @@ trading_logic:
   min_edge_bps: 3.0
   persistence: 2
   threshold_mult: 0.1
-  stop_loss_atr_mult: 4
-  take_profit_atr_mult: 6
+  z_threshold: 0.35
+  stop_loss_atr_mult: 1.5
+  take_profit_atr_mult: 3
   tick_size: 0.001
   quantile_window: 150  # shorter lookback
-  entry_quantile: 0.90   
+  entry_quantile: 0.8   
 
 logging:
   level: INFO

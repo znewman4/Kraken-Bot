@@ -61,17 +61,24 @@ def run_backtest(config_path='config.yml'):
     data = EngineeredData(dataname=df)
     cerebro.adddata(data)
 
-    cerebro.addstrategy(KrakenStrategy, config=config)
     cerebro.broker.setcommission(
-    commission=config['trading_logic']['fee_rate'],
-    leverage=1.0
-)
-
+        commission=config['trading_logic']['fee_rate'],
+        leverage=1.0
+    )
+    
     cerebro.broker.set_slippage_perc(
         perc=config['backtest'].get('slippage_perc', 0.0005),
         slip_open=True, slip_limit=True, slip_match=True
     )
     cerebro.broker.setcash(config['backtest']['cash'])
+
+    # --- NEW: compute cost once ---
+    fee_rate = config['trading_logic']['fee_rate']
+    slip_rate = config['backtest'].get('slippage_perc', 0.0)
+    cost_bps = (2 * fee_rate + slip_rate) * 1e4
+
+    # pass to strategy
+    cerebro.addstrategy(KrakenStrategy, config=config, cost_bps=cost_bps)
 
     results = cerebro.run()
     strat = results[0]
@@ -96,18 +103,6 @@ def run_backtest(config_path='config.yml'):
 
     trade_df = strat.get_trade_log_df()
     trade_df.to_csv("trade_log.csv", index=False) 
-
-    import numpy as np
-    # print("exp_r mean:", np.mean(strat.exp_returns))
-    # print("exp_r std:", np.std(strat.exp_returns))
-    # print("exp_r min:", np.min(strat.exp_returns))
-    # print("exp_r max:", np.max(strat.exp_returns))
-
-    if config.get("backtest", {}).get("plot", False):
-        import matplotlib.pyplot as plt
-        plt.hist(strat.exp_returns, bins=100)
-        plt.title("Distribution of exp_r")
-        plt.show()
 
 
     return metrics_df, stats, cerebro
