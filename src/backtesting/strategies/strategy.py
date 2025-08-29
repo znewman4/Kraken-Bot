@@ -159,6 +159,14 @@ class KrakenStrategy(bt.Strategy):
         edge, thr, sig = self._compute_signal(exp_bps, z_edge)
         self._dbg(f"→ edge={edge:.3f}, thr={thr}, sig={sig}")
 
+        self._entry_snapshot = {
+            "exp_bps": float(exp_bps),          # calibrated, weighted expected return in bps
+            "z_edge":  float(z_edge),           # the z you used for gating/sizing
+            "sigma_bps": float(sigma_bar_bps),  # denominator used for z
+            "ev_bps": float(sig * exp_bps - self.p.cost_bps),
+            "sig": int(sig),
+        }
+
         self._log_bar_metrics(exp_bps, edge, vol, sig, thr)
 
 
