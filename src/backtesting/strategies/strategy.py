@@ -44,7 +44,7 @@ class KrakenStrategy(bt.Strategy):
     params = {
         'config' : None, 
         'enable_timed_exit' : True,
-        'enable_persistence' : False,
+        'enable_persistence' : True,
         'enable_quantile' : True,
      }
 
@@ -76,6 +76,7 @@ class KrakenStrategy(bt.Strategy):
         self.min_trade_size  = float(self.tl.get('min_trade_size', 0.01))
         self.max_position    = float(self.tl.get('max_position', 1.0))
         self.tick_size       = float(self.tl.get('tick_size', 0.01))
+        self.min_edge_bps      = float(self.tl.get('min_edge_bps', 0.0)) / 10000.0  # convert bps to decimal
 
         # state & logs
         self.trade_log      = []
@@ -125,7 +126,7 @@ class KrakenStrategy(bt.Strategy):
 
         # ADDED: place OCO children on the bar AFTER the entry filled -> prevents same-bar TP/SL hits
         if self.children_armed and self.position and self.entry_fill_bar is not None and len(self) > self.entry_fill_bar:
-            #print(f"DEBUG: Position size before placing children: {self.position.size}")
+            self._dbg(f"DEBUG: Position size before placing children: {self.position.size}")
             sz = abs(self.position.size)
             #print(f"DEBUG: Child order size: {sz}")
             if self.position.size > 0:
@@ -136,22 +137,24 @@ class KrakenStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=sz,  exectype=bt.Order.Limit, price=self.armed_limit, oco=self.stop_order)
             self.orders = [o for o in (self.stop_order, self.limit_order) if o is not None]
             self.children_armed = False
-            #print(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
+            self._dbg(f"{self.data.datetime.datetime(0).isoformat()} – 🛡️ Children placed: stop={self.armed_stop:.6f}, tp={self.armed_limit:.6f}")
 
         if self._in_flight():
             return
         
         vol = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
+        sigma_bar = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
+        sigma_bar_bps = max(1e-8, 1e4 * sigma_bar)  # per-bar sigma in bps
         self._update_buffers()
 
-        exp_r = self._predict_return()
-        self.exp_returns.append(exp_r)            
-        edge, thr, sig = self._compute_signal(exp_r, vol)
+        exp_bps, z_edge = self._predict_return()
+        self._dbg(f"exp_bps={exp_bps:.2f}, z_edge={z_edge:.3f}")
+        self.exp_returns.append(exp_bps)  # store for diagnostics; now in bps
 
-        self._log_bar_metrics(exp_r, edge, vol, sig, thr)
+        edge, thr, sig = self._compute_signal(exp_bps, z_edge)
+        self._dbg(f"→ edge={edge:.3f}, thr={thr}, sig={sig}")
 
-        # if len(self.exp_returns) % 50 == 0:  # log every ~50 bars
-        #     print(f"{self.data.datetime.datetime(0)} | exp_r={exp_r:.8f} | edge={edge:.8f} | thr={thr:.8f} | sig={sig}")
+        self._log_bar_metrics(exp_bps, edge, vol, sig, thr)
 
 
         self.edge_norms.append(edge)               # <-- keep these lists fresh
@@ -163,7 +166,7 @@ class KrakenStrategy(bt.Strategy):
             return
         if self.p.enable_persistence and not self._pass_persistence(sig):
             return
-        if self.p.enable_quantile and not self._pass_quantile(exp_r, sig):
+        if self.p.enable_quantile and not self._pass_quantile(exp_bps, sig):
             return
         
         size = self._size_position(edge, sig)
@@ -197,20 +200,50 @@ class KrakenStrategy(bt.Strategy):
         self.closes.append(self.data.close[0])
         
     def _predict_return(self):
-        preds = []
-        for h, m in self.models.items():
-            row = self._make_feature_row(h)
-            preds.append(m.predict(pd.DataFrame([row]))[0])
-        weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)[:len(preds)]
-        return np.dot(preds, weights) / weights.sum() if weights.sum() else float(np.mean(preds))
+        preds_bps = []
+        zs = []
+        weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)
 
-    def _compute_signal(self, exp_r, vol):
-        eps = 1e-8
-        vol = max(vol, eps)
-        edge = exp_r / vol
-        thr  = (self.fee_rate * self.threshold_mult) / vol if vol > 0 else float('inf')
-        sig  = 1 if edge >= thr else -1 if edge <= -thr else 0
-        return edge, thr, sig
+        # compute sigma_bar_bps (cached out of this function—pass it in or read self.sigma_bar_bps if you stored it)
+        sigma_bar = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
+        sigma_bar_bps = max(1e-8, 1e4 * sigma_bar)
+
+        for ih, m in self.models.items():
+            row = self._make_feature_row(ih)
+            r_h_bps = float(m.predict(pd.DataFrame([row]))[0])  # model trained to predict bps after patch A
+            preds_bps.append(r_h_bps)
+
+            # risk-normalize this horizon
+            z_h = r_h_bps / (sigma_bar_bps * np.sqrt(max(1, ih)))
+            zs.append(z_h)
+
+        # align lengths just in case
+        n = min(len(zs), len(weights))
+        if n == 0:
+            return 0.0, 0.0
+        w = weights[:n]
+        w = w / w.sum()
+
+        exp_bps = float(np.dot(preds_bps[:n], w))
+        z_edge  = float(np.dot(zs[:n], w))
+        return exp_bps, z_edge
+    
+
+    def _compute_signal(self, exp_bps, z_edge):
+        z_thr = float(self.tl.get('z_threshold', 0.35))  # maybe 0.3–0.6
+        sig = 1 if z_edge >= z_thr else -1 if z_edge <= -z_thr else 0
+        if sig == 0:
+            return z_edge, z_thr, 0
+        
+        cost_bps = getattr(self.p, "cost_bps", 0.0)  # <- use param passed from runner
+
+        min_edge = float(self.tl.get('min_edge_bps', 0.0))  # keep in bps
+        ev_bps = sig * exp_bps - cost_bps
+        if ev_bps > min_edge:
+            return z_edge, z_thr, sig
+        else:
+            self._dbg(f"Rejected by EV gate: ev_bps={ev_bps:.2f} (exp={exp_bps:.2f}, cost={cost_bps:.2f})")
+            return z_edge, z_thr, 0
 
     def _pass_persistence(self, sig):
         return len(self.signal_buffer) == self.signal_buffer.maxlen and all(s == sig for s in self.signal_buffer)
@@ -231,6 +264,13 @@ class KrakenStrategy(bt.Strategy):
         cash = self.broker.getcash()
         raw = (cash * size_fac) / self.data.close[0]
         size = min(round(raw, 8), cash / self.data.close[0])
+
+        # --- DEBUG ---
+        if np.random.rand() < 0.001:
+            print(f"[DEBUG] edge={edge:.3f}, ref={ref:.3f}, size_fac={size_fac:.4f}, raw={raw:.6f}, size={size}")
+
+
+
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 
     def _place_bracket(self, size, price):
@@ -247,6 +287,12 @@ class KrakenStrategy(bt.Strategy):
 
     def get_trade_log_df(self):
         return pd.DataFrame([t.__dict__ for t in self.trade_log])
+
+    def _dbg(self, msg):
+        """Print only if quiet=False in config.backtest"""
+        if not self.cfg.get("backtest", {}).get("quiet", False):
+            print(msg)
+
 
     def _get_feature_value(self, feat_name: str) -> float:
         """
@@ -291,5 +337,8 @@ class KrakenStrategy(bt.Strategy):
         # if self.metrics_buffer:
         #     print("DEBUG first metrics row:", self.metrics_buffer[0])
 
+
         return df
+    
+
 

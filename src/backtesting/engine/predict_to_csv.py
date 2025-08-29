@@ -4,8 +4,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
-from config_loader import load_config
+sys.path.append(str(Path(__file__).resolve().parents[3]))
 
+from config_loader import load_config
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("predict_exp_return")
 

@@ -1,0 +1,15 @@
+10-bar IC (bars): 0.236
+10-bar hit (bars): 49.5% over 275 bars
+10-bar IC (trades): -0.023
+Hit rate (trades): 43.9%
+Avg PnL/trade: -16.58
+Total PnL: -1774.38
+Win rate: 23.4%
+Gate coverage — long: 35.4%, short: 1.8%
+Gate pass on entries: 3.7%
+
+Direction vs Profitability:
+profitable       False  True 
+directional_hit              
+False                0     25
+True                82      0
