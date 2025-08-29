@@ -1094,3 +1094,17 @@ ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USDT
 2025-08-29 14:35:35,543 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
 2025-08-29 14:35:35,543 [__main__] INFO: Retraining horizon 48 using top SHAP features...
 2025-08-29 14:35:45,412 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
+2025-08-29 14:52:21,269 [__main__] INFO: Loaded config, starting up
+2025-08-29 14:52:25,357 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-29 14:52:46,228 [__main__] INFO: Horizon 1 model saved to models/xgb_h1.json
+2025-08-29 14:52:46,229 [__main__] INFO: Retraining horizon 1 using top SHAP features...
+2025-08-29 14:52:53,017 [__main__] INFO: Horizon 1 SHAP-retrained model saved to models/xgb_h1.json
+2025-08-29 14:53:03,479 [__main__] INFO: Horizon 12 model saved to models/xgb_h12.json
+2025-08-29 14:53:03,479 [__main__] INFO: Retraining horizon 12 using top SHAP features...
+2025-08-29 14:53:09,458 [__main__] INFO: Horizon 12 SHAP-retrained model saved to models/xgb_h12.json
+2025-08-29 14:53:20,818 [__main__] INFO: Horizon 24 model saved to models/xgb_h24.json
+2025-08-29 14:53:20,819 [__main__] INFO: Retraining horizon 24 using top SHAP features...
+2025-08-29 14:53:26,906 [__main__] INFO: Horizon 24 SHAP-retrained model saved to models/xgb_h24.json
+2025-08-29 14:53:37,864 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
+2025-08-29 14:53:37,865 [__main__] INFO: Retraining horizon 48 using top SHAP features...
+2025-08-29 14:53:43,433 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
