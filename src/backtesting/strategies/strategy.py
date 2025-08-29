@@ -1,5 +1,5 @@
 # src/backtesting/strategy.py
-import sys
+import sys, os, joblib
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # repo root
 import backtrader as bt
@@ -65,6 +65,9 @@ class KrakenStrategy(bt.Strategy):
             self.models[ih]        = m
             self.feature_names[ih] = m.get_booster().feature_names
 
+        # NEW: optional calibrator loading
+        self._load_calibrators()
+
         # parameters
         self.max_hold_bars   = int(self.tl.get('max_hold_bars', 29))
         self.quantile_window = int(self.tl.get('quantile_window', 1000))
@@ -77,7 +80,6 @@ class KrakenStrategy(bt.Strategy):
         self.min_trade_size  = float(self.tl.get('min_trade_size', 0.01))
         self.max_position    = float(self.tl.get('max_position', 1.0))
         self.tick_size       = float(self.tl.get('tick_size', 0.01))
-        self.min_edge_bps      = float(self.tl.get('min_edge_bps', 0.0)) / 10000.0  # convert bps to decimal
 
         # state & logs
         self.trade_log      = []
@@ -113,6 +115,8 @@ class KrakenStrategy(bt.Strategy):
         self.entry_bar      = None    # bar index at entry
         self.entry_fill_bar = None    # bar index when broker reports entry Completed
         self.pending_exit_reason = None  # reason to use when we intentionally flatten
+
+    
 
     def notify_order(self, order):
         return notifies.notify_order(self, order)
@@ -212,6 +216,7 @@ class KrakenStrategy(bt.Strategy):
         for ih, m in self.models.items():
             row = self._make_feature_row(ih)
             r_h_bps = float(m.predict(pd.DataFrame([row]))[0])  # model trained to predict bps after patch A
+            r_h_bps = self._apply_calibration(ih, r_h_bps)      # calibrated if available
             preds_bps.append(r_h_bps)
 
             # risk-normalize this horizon
@@ -312,6 +317,37 @@ class KrakenStrategy(bt.Strategy):
         feats = self.feature_names[h]  # use horizon-specific features from the booster
         return {f: self._get_feature_value(f) for f in feats}
 
+        # ---------- Calibration Helpers ----------
+    def _load_calibrators(self):
+        """Load per-horizon calibrators if enabled. Safe no-op otherwise."""
+        import os, joblib
+        self.calibrators = {}
+        if not self.cfg.get("calibration", {}).get("enabled", False):
+            return
+        suffix = self.cfg["calibration"].get("suffix", "_calib.joblib")
+        for h, path in self.tl["model_paths"].items():
+            base, _ = os.path.splitext(path)
+            cpath = base + suffix
+            if os.path.exists(cpath):
+                try:
+                    self.calibrators[int(h)] = joblib.load(cpath)
+                    self._dbg(f"[calib] loaded h={h} → {cpath}")
+                except Exception as e:
+                    self._dbg(f"[calib] WARN failed to load {cpath}: {e}")
+            else:
+                self._dbg(f"[calib] no calibrator found for h={h} (expected {cpath})")
+
+    def _apply_calibration(self, h: int, raw_bps: float) -> float:
+        """Return calibrated bps if calibrator exists for horizon h; otherwise passthrough."""
+        cal = getattr(self, "calibrators", {}).get(h)
+        if cal is None:
+            return raw_bps
+        try:
+            return float(cal.predict([raw_bps])[0])
+        except Exception as e:
+            self._dbg(f"[calib] WARN predict failed for h={h}: {e}")
+            return raw_bps
+
 
     def _log_bar_metrics(self, exp_r, edge, vol, sig, thr):
         """Append per-bar diagnostics for model accuracy analysis."""
@@ -333,12 +369,6 @@ class KrakenStrategy(bt.Strategy):
         # Ensure required columns exist
         if 'position' not in df.columns:
             df['position'] = 0.0
-
-        # print("DEBUG metrics_buffer length:", len(self.metrics_buffer))
-        # if self.metrics_buffer:
-        #     print("DEBUG first metrics row:", self.metrics_buffer[0])
-
-
         return df
     
 

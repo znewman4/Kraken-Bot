@@ -55,7 +55,7 @@ training:
   batch_size:     32
   validation_split: 0.2
   start_date: "2025-06-01"
-  end_date:   "2025-08-25"
+  end_date:   "2025-08-01"
 
 selection:
   method: "shap"
@@ -69,7 +69,7 @@ backtest:
   commission: 0.0025
   slippage_perc: 0.0002
   max_bars: 3000
-  quiet: true
+  quiet: false
 
 trading_logic:
   model_paths:
@@ -84,24 +84,25 @@ trading_logic:
   max_position:   1
   min_trade_size: 0.01
   cooloff_bars: 6.0
-  min_edge_bps: 3.0
+  min_edge_bps: 4.0
   persistence: 2
   threshold_mult: 0.09
-  z_threshold: 0.30
-  stop_loss_atr_mult: 1.5
-  take_profit_atr_mult: 3
+  z_threshold: 0.4
+  stop_loss_atr_mult: 2
+  take_profit_atr_mult: 4
   tick_size: 0.001
   quantile_window: 150  # shorter lookback
-  entry_quantile: 0.75   
+  entry_quantile: 0.85   
 
 calibration:
   enabled: true        
-  auto_fit: true       # if missing/stale, fit before backtest
+  auto_fit: false       # if missing/stale, fit before backtest
   val_frac: 0.2        # last 20% of train window used for calibration
   clip_mode: quantile  # winsorize realized bps during fit
   clip_q: 0.99         # 99th percentile cap
   min_samples: 800     # skip fit if too few points
   suffix: "_calib.joblib"  # file saved next to each model
+  quiet: false
 
 
 logging:

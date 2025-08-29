@@ -132,7 +132,9 @@ def main():
             model_top_h.save_model(model_path)
             logger.info("Horizon %s SHAP-retrained model saved to %s", h, model_path)
 
-    
+    if cfg.get('calibration', {}).get('enabled', False):
+        from src.calibration import fit_calibrators_for_config
+        fit_calibrators_for_config(cfg, df) 
 
 if __name__ == "__main__":
     main()

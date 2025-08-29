@@ -7,6 +7,8 @@ import pandas as pd
 from src.backtesting.strategies.strategy import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
+from src.calibration import ensure_calibrators
+
 
 
 
@@ -76,6 +78,9 @@ def run_backtest(config_path='config.yml'):
     fee_rate = config['trading_logic']['fee_rate']
     slip_rate = config['backtest'].get('slippage_perc', 0.0)
     cost_bps = (2 * fee_rate + slip_rate) * 1e4
+
+    #Add calibrator
+    ensure_calibrators(config)  # does nothing if disabled; fits if enabled+missing
 
     # pass to strategy
     cerebro.addstrategy(KrakenStrategy, config=config, cost_bps=cost_bps)
