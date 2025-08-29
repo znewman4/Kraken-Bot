@@ -43,6 +43,7 @@ class KrakenStrategy(bt.Strategy):
 
     params = {
         'config' : None, 
+        'cost_bps' : 0.0,   # transaction cost in bps (e.g., 0.2% = 20 bps)
         'enable_timed_exit' : True,
         'enable_persistence' : True,
         'enable_quantile' : True,
