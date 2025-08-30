@@ -1,10 +1,11 @@
-# src/backtesting/runner.py
+# src/backtesting/runner_slice.py
 
 import backtrader as bt
 import pandas as pd
 from src.backtesting.strategies.strategy import KrakenStrategy
 from src.backtesting.feeds import EngineeredData
 from config_loader import load_config
+from src.calibration import ensure_calibrators
 
 
 def _build_cerebro(config):
@@ -44,6 +45,9 @@ def _run_core(df: pd.DataFrame, config):
 
     data = EngineeredData(dataname=df)
     cerebro = _build_cerebro(config)
+
+    ensure_calibrators(config)  # does nothing if disabled; fits if enabled+missing
+
     cerebro.adddata(data)
 
     results = cerebro.run()
