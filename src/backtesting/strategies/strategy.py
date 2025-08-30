@@ -39,6 +39,8 @@ class KrakenStrategy(bt.Strategy):
         entry_bar: int
         exit_bar: int
         bars_held: int
+        ev_bps: float = float('nan')     # NEW
+        sigma_bps: float = float('nan')  # NEW
 
 
     params = {
@@ -80,6 +82,12 @@ class KrakenStrategy(bt.Strategy):
         self.min_trade_size  = float(self.tl.get('min_trade_size', 0.01))
         self.max_position    = float(self.tl.get('max_position', 1.0))
         self.tick_size       = float(self.tl.get('tick_size', 0.01))
+        self.sigma_floor_bps  = float(self.tl.get('sigma_floor_bps', 5.0))     # risk floor
+        self.min_warmup_bars  = int(self.tl.get('min_warmup_bars', self.vol_window))
+        self.cooldown_bars    = int(self.tl.get('cooldown_bars', 0))            # 0 = off
+        self.vote_buffer = deque(maxlen=self.tl.get('persistence', 1))
+        self.last_exit_bar    = -10**9                                          
+
 
         # state & logs
         self.trade_log      = []
@@ -94,7 +102,6 @@ class KrakenStrategy(bt.Strategy):
         self.edge_norms    = []
         self.thresholds    = []
         self.signals       = []
-        self.signal_buffer = deque(maxlen=self.tl.get('persistence', 1))
 
         self.atr = bt.indicators.ATR(self.data, period=self.tl.get('atr_period',14))
         self.sma = bt.indicators.SMA(self.data.close,
@@ -147,10 +154,17 @@ class KrakenStrategy(bt.Strategy):
         if self._in_flight():
             return
         
+        pre_ok, pre_why = self._pre_entry_gates()
+
         vol = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
         sigma_bar = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
         sigma_bar_bps = max(1e-8, 1e4 * sigma_bar)  # per-bar sigma in bps
         self._update_buffers()
+
+        if not pre_ok:
+            self._dbg(f"skip entry: {pre_why}")
+            return
+
 
         exp_bps, z_edge = self._predict_return()
         self._dbg(f"exp_bps={exp_bps:.2f}, z_edge={z_edge:.3f}")
@@ -158,6 +172,18 @@ class KrakenStrategy(bt.Strategy):
 
         edge, thr, sig = self._compute_signal(exp_bps, z_edge)
         self._dbg(f"→ edge={edge:.3f}, thr={thr}, sig={sig}")
+
+        vote = 1 if z_edge >= thr else (-1 if z_edge <= -thr else 0)
+        self.vote_buffer.append(vote)   # <-- feed every bar, always
+        self._dbg(f"gates → vote={vote}, ev_bps={sig*exp_bps:.2f}, cost={self.p.cost_bps:.1f}, "
+          f"min_edge={self.tl.get('min_edge_bps')}, vote_buf={list(self.vote_buffer)}")
+        
+        # Post gates
+        post_ok, post_why = self._post_entry_gates(sig, exp_bps, vote)
+        if not post_ok:
+            self._dbg(f"skip entry: {post_why}")
+            return
+
 
         self._entry_snapshot = {
             "exp_bps": float(exp_bps),          # calibrated, weighted expected return in bps
@@ -173,15 +199,7 @@ class KrakenStrategy(bt.Strategy):
         self.edge_norms.append(edge)               # <-- keep these lists fresh
         self.thresholds.append(thr)
         self.signals.append(sig)
-        self.signal_buffer.append(sig)
 
-        if sig == 0:
-            return
-        if self.p.enable_persistence and not self._pass_persistence(sig):
-            return
-        if self.p.enable_quantile and not self._pass_quantile(exp_bps, sig):
-            return
-        
         size = self._size_position(edge, sig)
         if size is None:
             return
@@ -259,8 +277,6 @@ class KrakenStrategy(bt.Strategy):
             self._dbg(f"Rejected by EV gate: ev_bps={ev_bps:.2f} (exp={exp_bps:.2f}, cost={cost_bps:.2f})")
             return z_edge, z_thr, 0
 
-    def _pass_persistence(self, sig):
-        return len(self.signal_buffer) == self.signal_buffer.maxlen and all(s == sig for s in self.signal_buffer)
 
     def _pass_quantile(self, exp_r, sig):
         if len(self.exp_returns) < self.quantile_window:
@@ -270,6 +286,51 @@ class KrakenStrategy(bt.Strategy):
         short_thr = np.quantile(hist, 1 - self.entry_quantile)
         return not ((sig == 1 and exp_r < long_thr) or (sig == -1 and exp_r > short_thr))
 
+
+    def _risk_ready(self):
+        """Warm-up + volatility floor (bps) gate."""
+        if len(self.ret_buffer) < self.min_warmup_bars:
+            return False, f"warmup: need {self.min_warmup_bars} bars (have {len(self.ret_buffer)})"
+        sigma = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
+        sigma_bps = 1e4 * sigma
+        if sigma_bps < self.sigma_floor_bps:
+            return False, f"sigma floor: {sigma_bps:.2f} < {self.sigma_floor_bps}"
+        # keep around for logging/diagnostics if you want
+        self._sigma_bps_latest = sigma_bps
+        return True, None
+
+    def _in_cooldown(self):
+        """True if we must wait N bars after a close before re-entering."""
+        if self.cooldown_bars <= 0:
+            return False
+        return (len(self) - getattr(self, 'last_exit_bar', -10**9)) <= self.cooldown_bars
+
+    def _pre_entry_gates(self):
+        """All pre-prediction gates that don’t depend on signal/exp_r."""
+        ok, why = self._risk_ready()
+        if not ok:
+            return False, why
+        if self._in_cooldown():
+            return False, f"cooldown: {self.cooldown_bars} bars"
+        return True, None
+
+    def _post_entry_gates(self, sig, exp_bps, vote):
+        """Post-prediction gates (direction, persistence, quantile, EV already in _compute_signal)."""
+        if vote == 0:
+            return False, "no signal"
+        if sig == 0:
+            return False, "EV gate"
+        if self.p.enable_persistence and not self._pass_persistence(vote):
+            return False, "persistence gate"
+        if self.p.enable_quantile and not self._pass_quantile(exp_bps, vote):
+            return False, "quantile gate"
+        return True, None
+    
+    def _pass_persistence(self, vote):
+        vb = self.vote_buffer
+        return (len(vb) == vb.maxlen) and all(v == vote and v != 0 for v in vb)
+
+
     def _size_position(self, edge, sig):
         # sizing logic unchanged
         recent = self.edge_norms[-50:]
@@ -278,12 +339,6 @@ class KrakenStrategy(bt.Strategy):
         cash = self.broker.getcash()
         raw = (cash * size_fac) / self.data.close[0]
         size = min(round(raw, 8), cash / self.data.close[0])
-
-        # --- DEBUG ---
-        if np.random.rand() < 0.001:
-            print(f"[DEBUG] edge={edge:.3f}, ref={ref:.3f}, size_fac={size_fac:.4f}, raw={raw:.6f}, size={size}")
-
-
 
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 

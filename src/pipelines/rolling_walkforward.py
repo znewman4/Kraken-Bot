@@ -96,8 +96,8 @@ def save_shap_summary(shap_values, X, outpath_png: Path, title: str):
 def parse_args():
     p = argparse.ArgumentParser("Rolling walk-forward retrain + backtest")
     p.add_argument("-c","--config", default="config.yml")
-    p.add_argument("--train-weeks", type=int, default=6)
-    p.add_argument("--test-weeks",  type=int, default=1)
+    p.add_argument("--train-weeks", type=int, default=12)
+    p.add_argument("--test-weeks",  type=int, default=2)
     p.add_argument("--diag-h",      type=int, default=10, help="H-bar horizon for diagnostics-style IC/hit")
     p.add_argument("--start-date",  type=str, default=None, help="Optional YYYY-MM-DD slice start")
     p.add_argument("--end-date",    type=str, default=None, help="Optional YYYY-MM-DD slice end")
@@ -213,6 +213,10 @@ def main():
                 joblib.dump(model_top_h, out_path.with_suffix(".pkl"))
 
             print(f"[saved] h={h} model → {out_path}")
+
+        if cfg.get('calibration', {}).get('enabled', False):
+            from src.calibration import fit_calibrators_for_config
+            fit_calibrators_for_config(cfg, df_train) 
 
         # --- Backtest with the freshly overwritten models ---
         df_test_bt = df_test.set_index("__dt__")

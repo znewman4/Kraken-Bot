@@ -60,14 +60,19 @@ def notify_order(st, order):
         atr  = float(st.atr[0])
         tick = float(st.tick_size)
 
+        snap = getattr(st, "_entry_snapshot", {})  # may be empty if something odd happened
+
+
         st.entry_bar      = len(st)
         st.entry_fill_bar = len(st)
         st.last_trade_info = {
             'entry_time':      now,
             'entry_price':     px,
             'size':            sz,
-            'predicted_exp_r': float(st.exp_returns[-1]) if st.exp_returns else float('nan'),
-            'edge':            float(st.edge_norms[-1]) if st.edge_norms else float('nan'),
+            'predicted_exp_r': float(snap.get("exp_bps", float('nan'))),   # <- from snapshot
+            'edge':            float(snap.get("z_edge", float('nan'))),    # <- from snapshot
+            'ev_bps':          float(snap.get("ev_bps", float('nan'))),    # <- NEW
+            'sigma_bps':       float(snap.get("sigma_bps", float('nan'))), # <- NEW
             'volatility':      float(st.ret_buffer[-1]) if st.ret_buffer else float('nan'),
             'atr':             atr,
             'stop_dist':       float(st.stop_mult * atr),
@@ -92,7 +97,7 @@ def notify_order(st, order):
 
         st.children_armed = True
         st.entry_order    = order
-        print(f"{now} – ▶ ENTRY filled: price={px:.6f}, size={sz:.6f} (children will arm next bar)")
+        st._dbg(f"{now} – ▶ ENTRY filled: price={px:.6f}, size={sz:.6f} (children will arm next bar)")
         return
 
     # ---------- EXIT (CHILD) COMPLETED ----------
@@ -111,7 +116,7 @@ def notify_order(st, order):
     if st.stop_order is order:
         st.stop_order = None
 
-    print(f"{now} – ◀ EXIT filled ({reason}): price={ex_price:.6f}, size={ex_size:.6f}")
+    st._dbg(f"{now} – ◀ EXIT filled ({reason}): price={ex_price:.6f}, size={ex_size:.6f}")
 
     # ---------- TIMED / MANUAL EXIT COMPLETED ----------
     # If we intentionally flattened (e.g., timed exit via st.close()), record it here.
@@ -132,7 +137,7 @@ def notify_order(st, order):
         # clear reason flag until next intentional flatten
         st.pending_exit_reason = None
 
-        print(f"{now} – ◀ EXIT filled ({st.last_trade_info['exit_reason']}): "
+        st._dbg(f"{now} – ◀ EXIT filled ({st.last_trade_info['exit_reason']}): "
               f"price={ex_price:.6f}, size={ex_size:.6f}")
 
         return
@@ -140,7 +145,7 @@ def notify_order(st, order):
 
 def notify_trade(st, trade):
 
-    #print("DEBUG TRADE:", trade.isclosed, trade.size, trade.pnlcomm)
+    st._dbg(f"DEBUG TRADE:, trade.isclosed, trade.size, trade.pnlcomm")
 
     """
     Exact logic from your Strategy.notify_trade, but as a helper.
@@ -188,9 +193,12 @@ def notify_trade(st, trade):
         entry_bar       = int(open_bar) if open_bar is not None else int(trade.baropen),
         exit_bar        = int(close_bar) if close_bar is not None else int(trade.barclose),
         bars_held       = int(bars_held),
+        ev_bps          = float(info.get('ev_bps', float('nan'))),       # NEW
+        sigma_bps       = float(info.get('sigma_bps', float('nan'))),    # NEW
     ))
+
     st.pnls.append(pnl)
-    print(f"🔍 TRADE CLOSED | {info.get('exit_reason','?')} | Net PnL={pnl:.2f} | Bars held={int(bars_held)}")
+    st._dbg(f"🔍 TRADE CLOSED | {info.get('exit_reason','?')} | Net PnL={pnl:.2f} | Bars held={int(bars_held)}")
 
     # reset per-trade state
     st.last_trade_info = {}
@@ -199,7 +207,8 @@ def notify_trade(st, trade):
     st.stop_order      = None
     st.limit_order     = None
     st.orders          = []
+    st.last_exit_bar = len(st)
 
-    fees_est = st.fee_rate * (abs(info['entry_price']*info['size']) + abs(_exit_px*info['size']))
-    #print(f"DEBUG FEES: est={fees_est:.2f}, gross≈{(pnl + fees_est):.2f}, net={pnl:.2f}")
+
+
 
