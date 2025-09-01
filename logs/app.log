@@ -1152,3 +1152,67 @@ ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USDT
 2025-08-30 11:20:51,687 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
 2025-08-30 11:21:04,458 [__main__] INFO: Loaded config, starting up
 2025-08-30 11:21:08,791 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-30 18:29:28,177 [__main__] INFO: Loaded config, starting up
+2025-08-30 18:29:33,455 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-30 18:30:04,638 [__main__] INFO: Horizon 1 model saved to models/xgb_h1.json
+2025-08-30 18:30:04,640 [__main__] INFO: Retraining horizon 1 using top SHAP features...
+2025-08-30 18:30:12,819 [__main__] INFO: Horizon 1 SHAP-retrained model saved to models/xgb_h1.json
+2025-08-30 18:30:26,471 [__main__] INFO: Horizon 12 model saved to models/xgb_h12.json
+2025-08-30 18:30:26,472 [__main__] INFO: Retraining horizon 12 using top SHAP features...
+2025-08-30 18:30:33,659 [__main__] INFO: Horizon 12 SHAP-retrained model saved to models/xgb_h12.json
+2025-08-30 18:30:44,661 [__main__] INFO: Horizon 24 model saved to models/xgb_h24.json
+2025-08-30 18:30:44,661 [__main__] INFO: Retraining horizon 24 using top SHAP features...
+2025-08-30 18:30:50,503 [__main__] INFO: Horizon 24 SHAP-retrained model saved to models/xgb_h24.json
+2025-08-30 18:31:00,819 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
+2025-08-30 18:31:00,820 [__main__] INFO: Retraining horizon 48 using top SHAP features...
+2025-08-30 18:31:05,747 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
+2025-08-31 14:06:28,450 [__main__] INFO: Loaded config, starting up
+2025-08-31 14:06:46,337 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-31 14:07:36,927 [__main__] INFO: Horizon 1 model saved to models/xgb_h1.json
+2025-08-31 14:07:36,928 [__main__] INFO: Retraining horizon 1 using top SHAP features...
+2025-08-31 14:07:40,767 [__main__] INFO: Horizon 1 SHAP-retrained model saved to models/xgb_h1.json
+2025-08-31 14:07:48,953 [__main__] INFO: Horizon 12 model saved to models/xgb_h12.json
+2025-08-31 14:07:48,954 [__main__] INFO: Retraining horizon 12 using top SHAP features...
+2025-08-31 14:07:57,216 [__main__] INFO: Horizon 12 SHAP-retrained model saved to models/xgb_h12.json
+2025-08-31 14:08:22,169 [__main__] INFO: Horizon 24 model saved to models/xgb_h24.json
+2025-08-31 14:08:22,171 [__main__] INFO: Retraining horizon 24 using top SHAP features...
+2025-08-31 14:08:43,971 [__main__] INFO: Horizon 24 SHAP-retrained model saved to models/xgb_h24.json
+2025-08-31 14:09:02,945 [__main__] INFO: Horizon 48 model saved to models/xgb_h48.json
+2025-08-31 14:09:02,946 [__main__] INFO: Retraining horizon 48 using top SHAP features...
+2025-08-31 14:09:12,278 [__main__] INFO: Horizon 48 SHAP-retrained model saved to models/xgb_h48.json
+2025-08-31 15:33:47,740 [__main__] INFO: Loaded config, starting up
+2025-08-31 15:33:57,984 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-08-31 15:34:29,305 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-08-31 15:34:54,369 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-08-31 15:35:18,563 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-08-31 15:35:45,567 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 14:29:23,410 [__main__] INFO: Loaded config, starting up
+2025-09-01 14:29:27,134 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 14:29:55,883 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 14:30:11,940 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 14:30:26,812 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 14:30:42,087 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 14:35:08,235 [__main__] INFO: Loaded config, starting up
+2025-09-01 14:35:14,805 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 14:35:50,348 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 14:36:14,042 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 14:36:28,456 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 14:36:43,067 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 14:44:21,411 [__main__] INFO: Loaded config, starting up
+2025-09-01 14:44:25,700 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 14:44:57,550 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 14:45:25,244 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 14:45:42,769 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 14:46:00,614 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 15:11:47,185 [__main__] INFO: Loaded config, starting up
+2025-09-01 15:11:54,583 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 15:12:37,007 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 15:12:57,777 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 15:13:19,348 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 15:13:42,094 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 15:17:10,015 [__main__] INFO: Loaded config, starting up
+2025-09-01 15:17:14,353 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 15:17:41,129 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 15:17:57,980 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 15:18:16,894 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 15:18:35,540 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)

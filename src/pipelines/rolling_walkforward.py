@@ -205,12 +205,15 @@ def main():
             # 6) overwrite the exact model file your strategy loads
             out_path = Path(model_paths[str(h)])
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            if hasattr(model_top_h, "save_model"):
-                model_top_h.save_model(out_path)
-            else:
-                # fallback: pickle if needed
-                import joblib
-                joblib.dump(model_top_h, out_path.with_suffix(".pkl"))
+
+            X_top_h.columns = [c.lower().replace('.', '_') for c in X_top_h.columns]
+
+            # FINAL save the model the strategy will use
+            model_top_h.save_model(out_path)
+
+            # Save the exact column list used to train it
+            with open(str(out_path) + ".cols.json", "w") as f:
+                json.dump(list(X_top_h.columns), f)
 
             print(f"[saved] h={h} model → {out_path}")
 

@@ -65,8 +65,8 @@ selection:
 backtest:
   start_date: "2025-08-01"
   end_date:   "2025-08-24"
-  cash:       10000
-  commission: 0.0025
+  cash:       100000
+  commission: 0.0002
   slippage_perc: 0.0002
   max_bars: 3000
   quiet: true
@@ -77,28 +77,34 @@ trading_logic:
     "12": "models/xgb_h12.json"
     "24": "models/xgb_h24.json"
     "48": "models/xgb_h48.json"
-  max_hold_bars: 75
-  horizon_weights: [0.29, 0.56, 0.13, 0.01]
-  fee_rate:       0.0001
-  vol_window:     30
-  max_position:   1
-  min_trade_size: 0.01
-  cooldown_bars: 3.0
-  min_edge_bps: 10.0
-  persistence: 2
-  threshold_mult: 0.09
-  z_threshold: 0.3
-  sigma_floor_bps: 2.5
-  stop_loss_atr_mult: 4
-  take_profit_atr_mult: 8
-  tick_size: 0.001
-  quantile_window: 400  # shorter lookback
-  entry_quantile: 0.85   
+
+  # 1. Trade sizing & lifecycle
+  max_position:    1
+  min_trade_size:  0.01
+  tick_size:       0.001
+  max_hold_bars:   40
+  cooldown_bars:   6
+
+  # 2. Signal generation & gating 
+  horizon_weights: [0.1, 0.2, 0.35, 0.35]
+  z_threshold:       0.2    
+  threshold_mult:    0.05      
+  min_edge_bps:      8.0      
+  persistence:       1        
+  quantile_window:   400
+  entry_quantile:    0.70      
+
+  # 3. Risk & exit management
+  vol_window:         30
+  sigma_floor_bps:    2.0
+  stop_loss_atr_mult: 5.0
+  take_profit_atr_mult: 6.0
+
 
 
 calibration:
   enabled: true        
-  auto_fit: false       # if missing/stale, fit before backtest
+  auto_fit: true       # if missing/stale, fit before backtest
   val_frac: 0.2        # last 20% of train window used for calibration
   clip_mode: quantile  # winsorize realized bps during fit
   clip_q: 0.99         # 99th percentile cap

@@ -178,6 +178,9 @@ class KrakenStrategy(bt.Strategy):
         self._dbg(f"gates → vote={vote}, ev_bps={sig*exp_bps:.2f}, cost={self.p.cost_bps:.1f}, "
           f"min_edge={self.tl.get('min_edge_bps')}, vote_buf={list(self.vote_buffer)}")
         
+
+        self._log_bar_metrics(exp_bps, edge, vol, sig, thr)
+
         # Post gates
         post_ok, post_why = self._post_entry_gates(sig, exp_bps, vote)
         if not post_ok:
@@ -192,8 +195,6 @@ class KrakenStrategy(bt.Strategy):
             "ev_bps": float(sig * exp_bps - self.p.cost_bps),
             "sig": int(sig),
         }
-
-        self._log_bar_metrics(exp_bps, edge, vol, sig, thr)
 
 
         self.edge_norms.append(edge)               # <-- keep these lists fresh
@@ -241,8 +242,16 @@ class KrakenStrategy(bt.Strategy):
 
         for ih, m in self.models.items():
             row = self._make_feature_row(ih)
-            r_h_bps = float(m.predict(pd.DataFrame([row]))[0])  # model trained to predict bps after patch A
-            r_h_bps = self._apply_calibration(ih, r_h_bps)      # calibrated if available
+            r_h_bps = float(m.predict(row)[0])  #REMOVE AFTER 
+
+                # (optional) quick guard: are we feeding mostly zeros?
+            zr = float((row[0] == 0.0).mean())
+            if zr > 0.80:
+                self._dbg(f"[warn] h={ih}: {zr:.0%} zeros in feature row — check feed/feature names")
+
+            print(f"DEBUG: h={ih}, raw pred={r_h_bps:.2f} bps")
+            r_h_bps = self._apply_calibration(ih, r_h_bps)  
+            print(f"DEBUG: h={ih}, calibrated pred={r_h_bps:.2f} bps")
             preds_bps.append(r_h_bps)
 
             # risk-normalize this horizon
@@ -377,10 +386,12 @@ class KrakenStrategy(bt.Strategy):
         return float(line[0])
 
     def _make_feature_row(self, h: int):
-        feats = self.feature_names[h]  # use horizon-specific features from the booster
-        return {f: self._get_feature_value(f) for f in feats}
-
-        # ---------- Calibration Helpers ----------
+        feats = self.feature_names[h]  # trained column order from booster
+        x = np.array([self._get_feature_value(f) for f in feats],
+                    dtype=np.float32).reshape(1, -1)
+        return x
+    
+ # ---------- Calibration Helpers ----------
     def _load_calibrators(self):
         """Load per-horizon calibrators if enabled. Safe no-op otherwise."""
         import os, joblib

@@ -25,13 +25,17 @@ def _build_cerebro(config):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    cerebro.addstrategy(KrakenStrategy, config=config)
-    cerebro.broker.setcommission(commission=config['trading_logic']['fee_rate'], leverage=1.0)
-    cerebro.broker.set_slippage_perc(
-        perc=config['backtest'].get('slippage_perc', 0.0005),
-        slip_open=True, slip_limit=True, slip_match=True
-    )
+
+    fee = float(config['backtest'].get('commission', 0.0))
+    slip = float(config['backtest'].get('slippage_perc', 0.0))
+
+    cerebro.broker.setcommission(commission=fee, leverage=1.0)
+    cerebro.broker.set_slippage_perc(perc=slip, slip_open=True, slip_limit=True, slip_match=True)
     cerebro.broker.setcash(config['backtest']['cash'])
+
+    cost_bps = (2 * fee + slip) * 1e4
+    cerebro.addstrategy(KrakenStrategy, config=config, cost_bps=cost_bps)
+
     return cerebro
 
 

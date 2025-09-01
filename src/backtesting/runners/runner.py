@@ -63,21 +63,16 @@ def run_backtest(config_path='config.yml'):
     data = EngineeredData(dataname=df)
     cerebro.adddata(data)
 
-    cerebro.broker.setcommission(
-        commission=config['trading_logic']['fee_rate'],
-        leverage=1.0
-    )
+    fee = float(config['backtest'].get('commission', 0.0))
+    slip = float(config['backtest'].get('slippage_perc', 0.0))
+
+
+    cerebro.broker.setcommission(commission=fee, leverage=1.0)
     
-    cerebro.broker.set_slippage_perc(
-        perc=config['backtest'].get('slippage_perc', 0.0005),
-        slip_open=True, slip_limit=True, slip_match=True
-    )
+    cerebro.broker.set_slippage_perc(perc=slip, slip_open=True, slip_limit=True, slip_match=True)
     cerebro.broker.setcash(config['backtest']['cash'])
 
-    # --- NEW: compute cost once ---
-    fee_rate = config['trading_logic']['fee_rate']
-    slip_rate = config['backtest'].get('slippage_perc', 0.0)
-    cost_bps = (2 * fee_rate + slip_rate) * 1e4
+    cost_bps = (2 * fee + slip) * 1e4
 
     #Add calibrator
     ensure_calibrators(config)  # does nothing if disabled; fits if enabled+missing

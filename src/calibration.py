@@ -73,6 +73,7 @@ def fit_calibrators_for_config(cfg: dict, df: pd.DataFrame | None = None) -> dic
         model_cfg = dict(cfg["model"])
         model_cfg["horizon"] = h
         X, y = prepare_features_and_target(df, model_cfg)
+        X.columns = [c.lower().replace('.', '_') for c in X.columns]
 
         # Load XGBoost model and align columns to booster feature order
         import xgboost as xgb

@@ -1,22 +1,33 @@
 # modeling.py
 import numpy as np
 import xgboost as xgb
+import pandas as pd 
 
 
 def prepare_features_and_target(df, model_cfg):
-
     horizon = int(model_cfg.get("horizon", 1))
     df2 = df.copy()
 
-    # simple return over horizon
+    # simple return over horizon -> target in bps
     frac_ret = (df2['close'].shift(-horizon) - df2['close']) / df2['close']
-    df2['target'] = frac_ret * 1e4  # <-- bps
+    df2['target'] = frac_ret * 1e4  # bps
 
-    df2.dropna(inplace=True)
-    feature_cols = [c for c in df2.columns if c not in ('target', 'close')]
-    X = df2[feature_cols]
+    # keep only numeric columns for features
+    num = df2.select_dtypes(include=[np.number]).copy()
+
+    # features = numeric columns except target & close
+    feature_cols = [c for c in num.columns if c not in ('target', 'close')]
+
+    # replace infs with NaN, then drop rows with any NaN in X or y
+    X = num[feature_cols].replace([np.inf, -np.inf], np.nan)
     y = df2['target']
+    df_xy = pd.concat([X, y], axis=1).dropna()
+
+    # cast to float32 for consistency/perf
+    X = df_xy[feature_cols].astype('float32')
+    y = df_xy['target'].astype('float32')
     return X, y
+
 
 
 def time_series_cv_split(n_samples, train_size, test_size, step=1):

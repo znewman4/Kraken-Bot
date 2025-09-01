@@ -1,11 +1,11 @@
 # src/main.py
-import os
+import os, json
 import argparse
 import logging
 from pathlib import Path
 
 import pandas as pd
-
+import numpy as np
 from config_loader import load_config
 from src import bulk_download
 from src.data_cleaning import clean_ohlcv, validate_ohlcv
@@ -102,6 +102,9 @@ def main():
 
         # 1) build features & target for this horizon
         X_h, y_h = prepare_features_and_target(df, cfg['model'])
+        X_h = X_h.select_dtypes(include=[np.number]).astype('float32')  # reinforce numeric+dtype
+        X_h.columns = [c.lower().replace('.', '_') for c in X_h.columns]
+
 
         # 2) hyperparameter tuning
         best_params, tuning_path = run_tuning(X_h, y_h, cfg['tuning'], cfg['model'])
@@ -111,26 +114,38 @@ def main():
             X_h, y_h, tuning_path,
             cfg['training'], cfg['model'], cfg['selection']
         )
+        
 
-        # 4) save the model to the path strategy expects
-        Path(model_path).parent.mkdir(parents=True, exist_ok=True)
-        model_h.save_model(model_path)
-        logger.info(f"Horizon {h} model saved to {model_path}")
-
-        # 5) Optional SHAP-based Retraining per horizon
+        # Decide the final dataset/model that the STRATEGY will load
         if cfg['selection']['method'] == 'shap':
-            logger.info("Retraining horizon %s using top SHAP features...", h)
-            X_top_h = X_h[top_feats_h]
+            # Retrain on SHAP-selected features
+            X_top_h = X_h[top_feats_h].astype('float32')
+
             best_params_top, tuning_path_top = run_tuning(
                 X_top_h, y_h, cfg['tuning'], cfg['model']
             )
-            model_top_h, _, _ = run_training_pipeline(
+            model_final, _, _ = run_training_pipeline(
                 X_top_h, y_h, tuning_path_top,
                 cfg['training'], cfg['model'], cfg['selection']
             )
-            # overwrite the same file so strategy picks up SHAP model
-            model_top_h.save_model(model_path)
-            logger.info("Horizon %s SHAP-retrained model saved to %s", h, model_path)
+            X_final = X_top_h
+        else:
+            model_final = model_h
+            X_final = X_h.astype('float32')
+
+        X_final.columns = [c.lower().replace('.', '_') for c in X_final.columns]
+
+
+        # Save ONLY the final, strategy-facing model here
+        Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+        model_final.save_model(model_path)
+        with open(str(model_path) + ".cols.json", "w") as f:
+            json.dump(list(X_final.columns), f)
+
+        logger.info(
+            "Horizon %s final model saved to %s (cols=%d, shap=%s)",
+            h, model_path, X_final.shape[1], cfg['selection']['method'] == 'shap'
+        )
 
     if cfg.get('calibration', {}).get('enabled', False):
         from src.calibration import fit_calibrators_for_config
