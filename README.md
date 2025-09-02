@@ -1,141 +1,163 @@
-"""
-================================================================================
-Machine Learning Pipeline: Process Overview
-================================================================================
+# Project Title & One-Liner
 
-This project implements a full end-to-end machine learning pipeline, covering:
-- data loading
-- data cleaning
-- feature engineering
-- model construction
-- model training
-- hyperparameter tuning
-- testing of tuned models
-- feature prioritization
+Quant research framworks for regime-aware ML strategies on high-frequency crypto data with execution realism and walk-forward evaluation. 
 
-Below is a walkthrough of the logical flow and each module's role.
+# Why this repo
 
---------------------------------------------------------------------------------
-1. data_loading.py
---------------------------------------------------------------------------------
-This module contains functions to import the raw dataset, for example from CSV
-or Excel. The imported data is converted to a pandas DataFrame to provide a
-consistent interface for downstream processing. Think of this module as the
-central gatekeeper for all raw data inputs, ensuring that any future changes in
-data source only require you to edit this one file, keeping the rest of the
-pipeline intact.
+This project demonstrates my ability to combine machine learning with practical risk awareness in a research setting. It reflects an iterative process: moving from naïve classifiers to calibrated regression models, and discovering first-hand how regime shifts impact hyperparameters and model accuracy. The framework is deliberately modest — execution realism and walk-forward retraining are implemented to highlight process over results — and it remains massively improvable. Its purpose is to show that I can reason about model design, risk controls, and research trade-offs in the way a quant team would expect.
 
---------------------------------------------------------------------------------
-2. data_cleaning.py
---------------------------------------------------------------------------------
-After loading, raw data typically contains missing values, duplicates, or
-incorrect types. This module systematically handles those issues. It may:
-- drop duplicates
-- fill or impute missing values
-- convert data types (e.g., categorical encodings)
-- remove obviously corrupted rows
-The functions here take a raw DataFrame and return a "clean" one ready for
-feature engineering and modeling. By isolating cleaning, the code stays modular
-and easier to debug.
+# Project structure
 
---------------------------------------------------------------------------------
-3. technical_engineering.py
---------------------------------------------------------------------------------
-This file supports technical feature engineering, meaning transformations to
-enhance the dataset. It might include:
-- one-hot encoding for categoricals
-- polynomial feature expansions
-- feature scaling or normalization
-- custom domain-based features
-Transformations happen here after cleaning but before model training. Well-
-engineered features tend to improve model performance significantly.
+Repo layout:
 
---------------------------------------------------------------------------------
-4. modeling.py
---------------------------------------------------------------------------------
-This module defines the ML model itself. It is separated out so you can change
-model type (e.g., RandomForest to XGBoost or a neural net) without touching
-data handling or training code. Often, you will find a function like
-`create_model()` in this module, returning an untrained model object ready to
-be fit on data. Centralizing this logic encourages experimentation.
+* `config.yml` — global configuration.
+* `main.py` — end‑to‑end training pipeline: feature engineering, model fitting, calibration.
+* `run_kraken_strategy.py` — entry point for live‑model backtests.
+* `src/` — core modules:
 
---------------------------------------------------------------------------------
-5. training.py
---------------------------------------------------------------------------------
-This module takes the cleaned and engineered data, splits it into training and
-validation/test subsets, fits the model, and evaluates performance on those
-splits. It handles the actual `.fit()` and `.predict()` calls, and records
-performance metrics (accuracy, RMSE, etc.). If you want to track overfitting
-or plot learning curves, do it here. In a production workflow, this is where
-you would also persist the trained model to disk.
+  * `backtesting/` — strategies, runners, feeds, analysis.
+  * `pipelines/rolling_walkforward.py` — walk‑forward retraining and OOS evaluation.
+  * `modeling.py`, `training.py`, `tuning.py`, `calibration.py` — model preparation, tuning, and calibration.
+  * `data_cleaning.py`, `technical_engineering.py`, `bulk_download.py`, `data_loading.py` — data ingestion and feature engineering.
+* `data/` — raw and processed OHLCV, feature sets, and precomputed returns.
+* `logs/diagnostics/` — plots and diagnostic outputs.
+* `results/` — aggregate performance exports.
+* `models/` — trained model artifacts.
+* `tests/`, `requirements.txt`, `trade_log.csv`.
 
---------------------------------------------------------------------------------
-6. tuning.py
---------------------------------------------------------------------------------
-Machine learning models often need parameter tuning to perform optimally. This
-module performs systematic searches over a hyperparameter space, for example
-using GridSearchCV or RandomizedSearchCV, to find the best combination of
-parameters. By keeping this logic separate, you can reuse the same tuning code
-across different models with minimal edits. After tuning, the best parameters
-are reported for use in final evaluation.
+# Data layout
 
---------------------------------------------------------------------------------
-7. tuningtest.py
---------------------------------------------------------------------------------
-After finding optimal hyperparameters, you need to verify they work on truly
-unseen data. This module tests the tuned model, helping detect any overfitting
-that may have occurred during hyperparameter search. Essentially, it is a
-final validation layer to confirm generalizability before deploying or drawing
-conclusions about performance.
+Data is organized under `data/`:
 
---------------------------------------------------------------------------------
-8. prioritise_features.py
---------------------------------------------------------------------------------
-This module helps rank feature importance, using methods like feature importances
-from tree models, permutation importance, or SHAP values. It allows you to
-identify which features matter most, so you can:
-- simplify the model
-- interpret the results
-- focus on key variables
-This prioritization step is particularly useful for business or scientific
-explanations.
+* Raw data: `raw/btc_ohlcv_5min_raw.csv`.
+* Engineered data: `processed/btc_ohlcv_5min_engineered.csv`.
+* Precomputed features and predictions: `features_with_exp_returns.parquet` (and CSV fallback).
 
---------------------------------------------------------------------------------
-9. main.py
---------------------------------------------------------------------------------
-This script coordinates the entire workflow:
-- calls data loading functions
-- runs cleaning
-- applies feature engineering
-- defines and builds the model
-- trains the model
-- tunes the hyperparameters
-- tests the tuned model
-- prioritizes features
-This top-level script serves as the *orchestrator* of the whole process. If
-someone wants to run the entire pipeline end-to-end, they execute `main.py`.
-This guarantees reproducibility, since every step is called in a consistent
-sequence.
+Canonical columns include OHLCV, `vwap`, `count`, technical indicators (`ema_10`, `sma_10`, `rsi_14`, Bollinger bands, MACD family, volatility metrics), return lags, and the target `exp_return` (bps). Optional fields include z‑scores such as `z_edge`. Index is datetime at 5‑minute frequency in UTC.
 
---------------------------------------------------------------------------------
-Workflow Summary
---------------------------------------------------------------------------------
-1. Load raw data (data_loading.py)
-2. Clean data (data_cleaning.py)
-3. Engineer features (technical_engineering.py)
-4. Define the model (modeling.py)
-5. Train the model (training.py)
-6. Tune hyperparameters (tuning.py)
-7. Test the tuned model (tuningtest.py)
-8. Prioritize features (prioritise_features.py)
-9. Orchestrate everything (main.py)
+# Pipelines overview
 
-This design is modular, so you can:
-- swap in new models
-- adjust features
-- change hyperparameter strategies
-with minimal disruption to the rest of the pipeline. In short, it supports
-clean, extensible, and reproducible machine learning experimentation.
+Two main pipelines:
 
-================================================================================
-"""
+* Model training pipeline (`main.py` + supporting modules).
+* Backtesting pipeline (`src/backtesting/…` + `pipelines/rolling_walkforward.py`).
+
+# Model training pipeline (main.py area)
+
+Inputs
+
+* Engineered feature set from `data/processed/btc_ohlcv_5min_engineered.csv` with train/test splits defined in `config.yml`.
+
+Steps
+
+* Feature augmentation using `technical_engineering`.
+* Preparation of features/targets per horizon with `modeling.prepare_features_and_target`.
+* Hyperparameter tuning with `tuning.tune_model` using time‑series CV.
+* Model training via `training.run_training_pipeline`, optionally applying SHAP‑based feature pruning.
+* Calibration through `calibration.fit_calibrators_for_config` to correct probability estimates.
+
+Outputs
+
+* Horizon‑specific model artifacts (`models/*.json`).
+* Feature column lists for reproducibility.
+* Calibrated predictions exported via `predict_to_csv.py` and converted to Parquet for backtesting.
+
+Notes
+
+* Seeds and thread limits enforced for deterministic reproducibility.
+
+# Backtesting pipeline (backtesting/)
+
+Both strategies implement the same gating and sizing logic. One version consumes precomputed Parquet outputs for high‑speed sweeps, the other integrates live model inference for potential deployment. This separation allows fast hyperparameter search and realistic live‑mode simulation.
+
+* Precomputed backtest: `runners/runner_precomputed.py` loads Parquet predictions into `strat_precomputed.KrakenStrategy`.
+* Live‑model backtest: `runners/runner.py` and `runners/runner_slice.py` call `strategy.KrakenStrategy` with on‑the‑fly XGBoost predictions.
+* Rolling walk‑forward: `pipelines/rolling_walkforward.py` retrains per segment and backtests on the following segment, logging IC, hit rate, PnL, and SHAP plots.
+
+# Configuration (config.yml)
+
+The configuration file centralizes all experiment parameters. It defines data sources, training windows, trading logic, and execution costs. Strategies are shaped by editing the YAML—switching data windows, adjusting model weights, or toggling calibration—without changing code.
+
+Key fields include:
+
+* `data.*` for paths and train/test ranges.
+* `backtest.*` for cash, commission, slippage, and run controls.
+* `trading_logic.*` for model paths, thresholds, quantile windows, volatility windows, ATR‑based stop/TP, persistence rules, and sizing constraints.
+* `calibration.*` for enabling and configuring calibrators.
+
+# Execution realism & risk gates
+
+The strategy layers multiple gates and execution constraints to enforce realism and robustness:
+
+* **Z-threshold gate**: trades only triggered when weighted horizon predictions yield a z-edge above a configurable threshold.
+* **EV gate with costs**: requires expected return (in bps) to exceed `cost_bps` (fee + slippage, \~6–8 bps round trip), ensuring trades are only taken when signal strength justifies transaction costs.
+* **Quantile filter**: accepts trades only when expected return lies in the extreme quantiles of recent history, suppressing noise and weak signals.
+* **ATR-based stop-loss and take-profit**: dynamic levels scaled by volatility, providing regime-adaptive exits.
+* **Warmup and sigma floor**: block trades until sufficient history is available and per-bar volatility exceeds a floor.
+* **OCO placement delay**: stop/limit children are only armed one bar after entry fill, preventing same-bar stop-outs and improving realism.
+* **Timed exit and cooldown**: positions auto-exit after a max hold period, with cooldown bars preventing immediate re-entry.
+* **Position sizing**: edge- and volatility-normalized, capped at `max_position` with a minimum trade size enforced.
+* **Persistence check**: optional vote buffer requires consistent signal direction across bars, filtering out transient flips.
+
+# Validation & analysis 
+
+Analysis tools in `backtesting/analysis/` include:
+
+* `model_accuracy_diagnostics.py` for prediction vs. realized alignment and calibration checks.
+* `parameter_sweeper.py` implementing Optuna Bayesian hyperparameter search.
+* `hp_grid_report.py`, `horizon_weights.py`, `custom_tuning.py` for reporting and horizon weighting utilities.
+* `analyze_trade_log.py` for trade‑level diagnostics: PnL, hold times, stop/TP outcomes, and tail analysis.
+
+# Reproducibility & performance
+
+Determinism is enforced with fixed seeds and thread caps (`OMP_NUM_THREADS`, MKL/BLAS envs). Performance is optimized with Parquet caching, vectorized slicing, and controlled logging for quiet runs.
+
+# Quickstart (commands)
+
+Environment setup:
+
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Train on a segment:
+
+```
+python main.py -c config.yml
+```
+
+Backtest out‑of‑sample (live‑model):
+
+```
+python run_kraken_strategy.py -c config.yml
+```
+
+Walk‑forward OOS evaluation:
+
+```
+python -m src.pipelines.rolling_walkforward -c config.yml --train-weeks 12 --test-weeks 2 --diag-h 10
+```
+
+Hyperparameter sweep:
+
+```
+python -m src.backtesting.analysis.parameter_sweeper
+```
+
+# Results placeholders
+
+Diagnostic results and plots are stored under `logs/diagnostics/`.
+
+# Limitations
+
+Known limitations include reliance on 5‑minute BTC data, simplified latency and slippage modeling, and lack of multi‑asset testing. Exchange‑level microstructure is approximated rather than modeled in detail.
+
+# Roadmap / next steps
+
+* Regime‑aware parameter switching via config.
+* Automated retraining on SHAP drift or feature distribution shifts.
+* Enhanced slippage models, multi‑asset support, portfolio netting, and risk overlays.
+
+
