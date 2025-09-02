@@ -236,7 +236,7 @@ class KrakenStrategy(bt.Strategy):
         zs = []
         weights = np.array(self.cfg['trading_logic']['horizon_weights'], dtype=float)
 
-        # compute sigma_bar_bps (cached out of this function—pass it in or read self.sigma_bar_bps if you stored it)
+        # compute sigma_bar_bps 
         sigma_bar = np.std(self.ret_buffer[-self.vol_window:]) if len(self.ret_buffer) >= self.vol_window else 0.0
         sigma_bar_bps = max(1e-8, 1e4 * sigma_bar)
 
@@ -244,14 +244,12 @@ class KrakenStrategy(bt.Strategy):
             row = self._make_feature_row(ih)
             r_h_bps = float(m.predict(row)[0])  #REMOVE AFTER 
 
-                # (optional) quick guard: are we feeding mostly zeros?
+                #  are we feeding mostly zeros?
             zr = float((row[0] == 0.0).mean())
             if zr > 0.80:
                 self._dbg(f"[warn] h={ih}: {zr:.0%} zeros in feature row — check feed/feature names")
 
-            print(f"DEBUG: h={ih}, raw pred={r_h_bps:.2f} bps")
             r_h_bps = self._apply_calibration(ih, r_h_bps)  
-            print(f"DEBUG: h={ih}, calibrated pred={r_h_bps:.2f} bps")
             preds_bps.append(r_h_bps)
 
             # risk-normalize this horizon
@@ -352,11 +350,7 @@ class KrakenStrategy(bt.Strategy):
         return size if sig * size > 0 and abs(size) >= self.min_trade_size else None
 
     def _place_bracket(self, size, price):
-        """
-        CHANGED: ENTRY-ONLY. We deliberately do NOT submit children here.
-        Children are armed in notify_order at entry fill and submitted next bar in next().
-        This removes same-bar bracket exits.
-        """
+
         if size > 0:
             self.entry_order = self.buy(size=abs(size))   # market entry
         else:

@@ -1226,3 +1226,5 @@ ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USDT
 2025-09-02 11:16:41,466 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
 2025-09-02 11:17:07,458 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
 2025-09-02 11:17:32,353 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-02 11:18:01,188 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-02 11:18:20,275 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)

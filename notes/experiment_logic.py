@@ -41,16 +41,15 @@ print(f"Raw Model IC (all bars): {allbar_ic:.3f}")
 # --------------- 3. Experiment Config ----------------
 use_persistence_filter = False
 use_quantile_gating   = True
-use_volatility_filter = True    # <--- Set to True to turn on!
+use_volatility_filter = True    
 use_edge_threshold    = False
-use_stop_loss         = False  # False = pure H-bar hold
+use_stop_loss         = False  
 reverse_signal        = False
 
-quantile_window = 100      # rolling history for quantile calculation
+quantile_window = 100     
 entry_quantile = 0.8 
 edge_threshold = 0.95
 signal_persistence = 2
-# Bracket multipliers—try these values, tune as you wish!
 stop_mult = 2  # Stop-loss = 1.5x ATR from entry
 tp_mult   = 4   # Take-profit = 3.0x ATR from entry
 

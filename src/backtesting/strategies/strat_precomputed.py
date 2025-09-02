@@ -15,7 +15,7 @@ from src.backtesting.engine import notifies
 
 class KrakenStrategy(bt.Strategy):
     """
-    Precomputed variant of your live strategy:
+    Precomputed variant of  live strategy:
     - Reads precomputed 'exp_return' (bps) and optional 'z_edge' directly from the feed.
     - Applies the same gates, sizing, and trade handling as live.
     - Skips model prediction & calibration (already baked into the input).
@@ -195,7 +195,7 @@ class KrakenStrategy(bt.Strategy):
             "sig": int(sig),
         }
 
-    # --- Helpers (mirroring live) ---
+    # --- Helpers (same as live) ---
     def _clear_stale_orders(self):
         if self.orders and not self.position:
             self.orders = []
