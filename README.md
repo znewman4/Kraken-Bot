@@ -1,6 +1,6 @@
 # Project Title & One-Liner
 
-Quant research framworks for regime-aware ML strategies on high-frequency crypto data with execution realism and walk-forward evaluation. 
+Quant research framework for regime-aware ML strategies on high-frequency crypto data with execution realism and walk-forward evaluation.
 
 # Why this repo
 
@@ -11,12 +11,12 @@ This project demonstrates my ability to combine machine learning with practical 
 Repo layout:
 
 * `config.yml` — global configuration.
-* `main.py` — end‑to‑end training pipeline: feature engineering, model fitting, calibration.
-* `run_kraken_strategy.py` — entry point for live‑model backtests.
+* `main.py` — end-to-end training pipeline: feature engineering, model fitting, calibration.
+* `run_kraken_strategy.py` — entry point for live-model backtests.
 * `src/` — core modules:
 
   * `backtesting/` — strategies, runners, feeds, analysis.
-  * `pipelines/rolling_walkforward.py` — walk‑forward retraining and OOS evaluation.
+  * `pipelines/rolling_walkforward.py` — walk-forward retraining and OOS evaluation.
   * `modeling.py`, `training.py`, `tuning.py`, `calibration.py` — model preparation, tuning, and calibration.
   * `data_cleaning.py`, `technical_engineering.py`, `bulk_download.py`, `data_loading.py` — data ingestion and feature engineering.
 * `data/` — raw and processed OHLCV, feature sets, and precomputed returns.
@@ -33,7 +33,7 @@ Data is organized under `data/`:
 * Engineered data: `processed/btc_ohlcv_5min_engineered.csv`.
 * Precomputed features and predictions: `features_with_exp_returns.parquet` (and CSV fallback).
 
-Canonical columns include OHLCV, `vwap`, `count`, technical indicators (`ema_10`, `sma_10`, `rsi_14`, Bollinger bands, MACD family, volatility metrics), return lags, and the target `exp_return` (bps). Optional fields include z‑scores such as `z_edge`. Index is datetime at 5‑minute frequency in UTC.
+Canonical columns include OHLCV, `vwap`, `count`, technical indicators (`ema_10`, `sma_10`, `rsi_14`, Bollinger bands, MACD family, volatility metrics), return lags, and the target `exp_return` (bps). Optional fields include z-scores such as `z_edge`. Index is datetime at 5-minute frequency in UTC.
 
 # Pipelines overview
 
@@ -52,13 +52,13 @@ Steps
 
 * Feature augmentation using `technical_engineering`.
 * Preparation of features/targets per horizon with `modeling.prepare_features_and_target`.
-* Hyperparameter tuning with `tuning.tune_model` using time‑series CV.
-* Model training via `training.run_training_pipeline`, optionally applying SHAP‑based feature pruning.
+* Hyperparameter tuning with `tuning.tune_model` using time-series CV.
+* Model training via `training.run_training_pipeline`, optionally applying SHAP-based feature pruning.
 * Calibration through `calibration.fit_calibrators_for_config` to correct probability estimates.
 
 Outputs
 
-* Horizon‑specific model artifacts (`models/*.json`).
+* Horizon-specific model artifacts (`models/*.json`).
 * Feature column lists for reproducibility.
 * Calibrated predictions exported via `predict_to_csv.py` and converted to Parquet for backtesting.
 
@@ -68,11 +68,11 @@ Notes
 
 # Backtesting pipeline (backtesting/)
 
-Both strategies implement the same gating and sizing logic. One version consumes precomputed Parquet outputs for high‑speed sweeps, the other integrates live model inference for potential deployment. This separation allows fast hyperparameter search and realistic live‑mode simulation.
+Both strategies implement the same gating and sizing logic. One version consumes precomputed Parquet outputs for high-speed sweeps, the other integrates live model inference for potential deployment. This separation allows fast hyperparameter search and realistic live-mode simulation.
 
 * Precomputed backtest: `runners/runner_precomputed.py` loads Parquet predictions into `strat_precomputed.KrakenStrategy`.
-* Live‑model backtest: `runners/runner.py` and `runners/runner_slice.py` call `strategy.KrakenStrategy` with on‑the‑fly XGBoost predictions.
-* Rolling walk‑forward: `pipelines/rolling_walkforward.py` retrains per segment and backtests on the following segment, logging IC, hit rate, PnL, and SHAP plots.
+* Live-model backtest: `runners/runner.py` and `runners/runner_slice.py` call `strategy.KrakenStrategy` with on-the-fly XGBoost predictions.
+* Rolling walk-forward: `pipelines/rolling_walkforward.py` retrains per segment and backtests on the following segment, logging IC, hit rate, PnL, and SHAP plots.
 
 # Configuration (config.yml)
 
@@ -82,7 +82,7 @@ Key fields include:
 
 * `data.*` for paths and train/test ranges.
 * `backtest.*` for cash, commission, slippage, and run controls.
-* `trading_logic.*` for model paths, thresholds, quantile windows, volatility windows, ATR‑based stop/TP, persistence rules, and sizing constraints.
+* `trading_logic.*` for model paths, thresholds, quantile windows, volatility windows, ATR-based stop/TP, persistence rules, and sizing constraints.
 * `calibration.*` for enabling and configuring calibrators.
 
 # Execution realism & risk gates
@@ -99,18 +99,20 @@ The strategy layers multiple gates and execution constraints to enforce realism 
 * **Position sizing**: edge- and volatility-normalized, capped at `max_position` with a minimum trade size enforced.
 * **Persistence check**: optional vote buffer requires consistent signal direction across bars, filtering out transient flips.
 
-# Validation & analysis 
+# Validation & analysis (analysis/)
 
 Analysis tools in `backtesting/analysis/` include:
 
 * `model_accuracy_diagnostics.py` for prediction vs. realized alignment and calibration checks.
 * `parameter_sweeper.py` implementing Optuna Bayesian hyperparameter search.
 * `hp_grid_report.py`, `horizon_weights.py`, `custom_tuning.py` for reporting and horizon weighting utilities.
-* `analyze_trade_log.py` for trade‑level diagnostics: PnL, hold times, stop/TP outcomes, and tail analysis.
+* `analyze_trade_log.py` for trade-level diagnostics: PnL, hold times, stop/TP outcomes, and tail analysis.
+
+Diagnostics produced in `logs/diagnostics/` include IC and hit-rate curves, Sharpe vs. turnover tables, walk-forward performance charts, and trade distribution plots. These outputs inform both parameter selection and model validity checks.
 
 # Reproducibility & performance
 
-Determinism is enforced with fixed seeds and thread caps (`OMP_NUM_THREADS`, MKL/BLAS envs). Performance is optimized with Parquet caching, vectorized slicing, and controlled logging for quiet runs.
+Determinism is enforced with fixed seeds and thread caps (`OMP_NUM_THREADS`, MKL/BLAS envs). Performance is optimized with Parquet caching, vectorized slicing, and controlled logging for quiet runs. Models are retrained each walk-forward segment and overwrite existing artifacts, mimicking production retraining cycles.
 
 # Quickstart (commands)
 
@@ -128,13 +130,13 @@ Train on a segment:
 python main.py -c config.yml
 ```
 
-Backtest out‑of‑sample (live‑model):
+Backtest out-of-sample (live-model):
 
 ```
 python run_kraken_strategy.py -c config.yml
 ```
 
-Walk‑forward OOS evaluation:
+Walk-forward OOS evaluation:
 
 ```
 python -m src.pipelines.rolling_walkforward -c config.yml --train-weeks 12 --test-weeks 2 --diag-h 10
@@ -148,16 +150,21 @@ python -m src.backtesting.analysis.parameter_sweeper
 
 # Results placeholders
 
-Diagnostic results and plots are stored under `logs/diagnostics/`.
+Diagnostic results and plots are stored under `logs/diagnostics/` and include IC curves, Sharpe and PnL summaries, parameter study results, and trade-level outcome distributions.
 
 # Limitations
 
-Known limitations include reliance on 5‑minute BTC data, simplified latency and slippage modeling, and lack of multi‑asset testing. Exchange‑level microstructure is approximated rather than modeled in detail.
+Known limitations include reliance on BTC/USDT 5-minute data only, sensitivity of hyperparameters to regime shifts, and simplified latency and slippage modeling. While data coverage is strong, exchange-level microstructure is approximated rather than fully modeled. The design generalizes to other assets but has not yet been extended beyond BTC.
 
 # Roadmap / next steps
 
-* Regime‑aware parameter switching via config.
-* Automated retraining on SHAP drift or feature distribution shifts.
-* Enhanced slippage models, multi‑asset support, portfolio netting, and risk overlays.
+* Regime-aware parameter switching via config (dynamic horizon weights, z-thresholds).
+* Automated retraining triggered by SHAP drift or feature distributional changes.
+* Richer slippage models (queue position, order book imbalance, latency injection).
+* Multi-asset extension (cross-asset signals, correlation risk management).
+* Portfolio overlays (Kelly sizing, drawdown caps, volatility targeting).
+* Integration with execution simulators using L2 order book data.
+* Continuous walk-forward retraining with CI/CD integration.
+* Advanced statistical extensions: e.g., shrinkage estimators for horizon weighting to stabilize across regimes.
 
 
