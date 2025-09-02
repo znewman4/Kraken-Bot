@@ -1,0 +1,71 @@
+# src/backtesting/analysis/hyperparameter_sweeper.py
+import sys, os
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[3]))
+
+import pandas as pd
+import numpy as np
+import optuna
+from config_loader import load_config
+from src.backtesting.runners.runner_precomputed import run_backtest_df
+
+# limit hidden threading inside numeric libs
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
+# Load base config (models already trained + paths set)
+cfg_master = load_config("config.yml")
+PARQ_PATH = cfg_master["data"]["exp_return_parquet_path"]
+
+# ---- Lazy cache for DataFrame ----
+_G_DF = None
+def _get_df():
+    global _G_DF
+    if _G_DF is None:
+        df = pd.read_parquet(PARQ_PATH, engine="pyarrow", memory_map=True)
+        df.index.name = "time"
+        _G_DF = df
+    return _G_DF
+
+# ---- Objective for Optuna ----
+def objective(trial):
+    cfg = dict(cfg_master)  # shallow copy is fine for updates
+    tl = dict(cfg["trading_logic"])
+
+    tl["quantile_window"]      = trial.suggest_int("quantile_window", 200, 600, step=50)
+    tl["entry_quantile"]       = trial.suggest_uniform("entry_quantile", 0.65, 0.9)
+    tl["z_threshold"]          = trial.suggest_uniform("z_threshold", 0.1, 0.4)
+    tl["threshold_mult"]       = trial.suggest_uniform("threshold_mult", 0.01, 0.1)
+    tl["min_edge_bps"]         = trial.suggest_int("min_edge_bps", 5, 12)
+    tl["stop_loss_atr_mult"]   = trial.suggest_uniform("stop_loss_atr_mult", 4.0, 6.0)
+    tl["take_profit_atr_mult"] = trial.suggest_uniform("take_profit_atr_mult", 5.0, 8.0)
+
+    cfg["trading_logic"] = tl
+    cfg.setdefault("backtest", {}).setdefault("quiet", True)
+
+    try:
+        df = _get_df()
+        _, stats, _ = run_backtest_df(df, cfg)
+        sharpe = stats.get("sharpe", np.nan)
+        return sharpe if np.isfinite(sharpe) else -1e6
+    except Exception as e:
+        print(f"[Optuna] trial failed: {e}")
+        return -1e6  # penalize failure
+
+# ---- Main runner ----
+if __name__ == "__main__":
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=50)  # adjust trial count as needed
+
+    print("\n=== 📈 Best Trial ===")
+    best = study.best_trial
+    print(f"Sharpe={best.value:.3f}")
+    print("Params:", best.params)
+
+    print("\n=== 🔎 Top 5 Trials ===")
+    df = study.trials_dataframe()
+    print(df.sort_values("value", ascending=False).head(5))
+
+    out_file = Path("logs") / "optuna_results.csv"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_file, index=False)
+    print(f"\n✅ Full study results saved to {out_file}")

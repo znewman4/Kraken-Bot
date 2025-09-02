@@ -162,6 +162,7 @@ def main():
             cfg["model"]["horizon"] = h
             X_h, y_h = prepare_features_and_target(df_train, cfg["model"])
             X_h = X_h.select_dtypes(include=[np.number]).copy()
+            X_h.columns = [c.lower().replace('.', '_') for c in X_h.columns]    
 
             # 2) tuning on full features
             best_params, tuning_path = run_tuning(X_h, y_h, cfg["tuning"], cfg["model"])
@@ -184,6 +185,8 @@ def main():
 
             # 5) re-train on top-K SHAP features, then overwrite model path used by strategy
             X_top_h = X_h[top_feats_h].select_dtypes(include=[np.number]).copy()
+            X_top_h = X_top_h.astype('float32')
+            X_top_h.columns = [c.lower().replace('.', '_') for c in X_top_h.columns]
             best_params_top, tuning_path_top = run_tuning(
                 X_top_h, y_h, cfg["tuning"], cfg["model"]
             )
@@ -206,7 +209,6 @@ def main():
             out_path = Path(model_paths[str(h)])
             out_path.parent.mkdir(parents=True, exist_ok=True)
 
-            X_top_h.columns = [c.lower().replace('.', '_') for c in X_top_h.columns]
 
             # FINAL save the model the strategy will use
             model_top_h.save_model(out_path)

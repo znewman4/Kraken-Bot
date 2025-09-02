@@ -2,7 +2,7 @@
 
 import argparse, logging
 import matplotlib
-matplotlib.use("TkAgg")   # or "Qt5Agg" if you have PyQt5 installed
+matplotlib.use("TkAgg")   
 from config_loader import load_config
 from src.backtesting.runners.runner import run_backtest
 
@@ -10,6 +10,8 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("-c", "--config", default="config.yml")
     return p.parse_args()
+
+
 
 def main():
     args = parse_args()

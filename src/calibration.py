@@ -85,7 +85,7 @@ def fit_calibrators_for_config(cfg: dict, df: pd.DataFrame | None = None) -> dic
         n = len(X)
         cut = int(n * (1 - val_frac))
         if n - cut < max(1, min_samples):
-            print(f"[calib] skip h={h}: samples={n-cut} < {min_samples}")
+            #print(f"[calib] skip h={h}: samples={n-cut} < {min_samples}")
             continue
 
         X_cal, y_cal = X.iloc[cut:], y.iloc[cut:]
@@ -95,7 +95,7 @@ def fit_calibrators_for_config(cfg: dict, df: pd.DataFrame | None = None) -> dic
         cpath = _cal_path(model_path, suffix)
         cal.save(cpath)
         saved[h] = cpath
-        print(f"[calib] h={h}: saved {cpath} (n={len(X_cal)})")
+        #print(f"[calib] h={h}: saved {cpath} (n={len(X_cal)})")
     return saved
 
 def ensure_calibrators(cfg: dict):
@@ -117,15 +117,15 @@ def ensure_calibrators(cfg: dict):
             need_any = True
             to_fit.append(int(h_str))
 
-    if not need_any:
-        print("[calib] all calibrators present & up-to-date.")
-        return
+    # if not need_any:
+    #     print("[calib] all calibrators present & up-to-date.")
+    #     return
 
     if not auto_fit:
         missing = [h for h in to_fit]
         raise RuntimeError(f"[calib] Missing/stale calibrators for horizons {missing} and auto_fit=False.")
 
-    print(f"[calib] fitting calibrators for horizons: {to_fit}")
+    #print(f"[calib] fitting calibrators for horizons: {to_fit}")
     # Load once to avoid repeated I/O
     df = pd.read_csv(cfg["data"]["feature_data_path"])
     fit_calibrators_for_config(cfg, df=df)

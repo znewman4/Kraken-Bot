@@ -1216,3 +1216,13 @@ ccxt.base.errors.BadSymbol: kraken does not have market symbol BTC//USDT
 2025-09-01 15:17:57,980 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
 2025-09-01 15:18:16,894 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
 2025-09-01 15:18:35,540 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-01 19:43:33,264 [__main__] INFO: Loaded config, starting up
+2025-09-01 19:43:37,508 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-01 19:44:02,074 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-01 19:45:00,068 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)
+2025-09-01 19:45:10,918 [__main__] INFO: Horizon 24 final model saved to models/xgb_h24.json (cols=10, shap=True)
+2025-09-01 19:45:20,809 [__main__] INFO: Horizon 48 final model saved to models/xgb_h48.json (cols=10, shap=True)
+2025-09-02 11:16:34,392 [__main__] INFO: Loaded config, starting up
+2025-09-02 11:16:41,466 [__main__] INFO: Engineered data saved to data/processed/btc_ohlcv_5min_engineered.csv
+2025-09-02 11:17:07,458 [__main__] INFO: Horizon 1 final model saved to models/xgb_h1.json (cols=10, shap=True)
+2025-09-02 11:17:32,353 [__main__] INFO: Horizon 12 final model saved to models/xgb_h12.json (cols=10, shap=True)

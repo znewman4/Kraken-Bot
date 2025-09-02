@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import pandas as pd
 from pathlib import Path
-from src.backtesting.runners.runner_pnl_cv import run_backtest
+from notes.runner_pnl_cv import run_backtest
 
 class PnLBacktestScorer:
     def __init__(self, base_config, result_key="real_pnl"):

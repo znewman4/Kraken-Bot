@@ -4,7 +4,7 @@ data:
   backtrader_data_path: "data/features_with_exp_returns.csv"
   exp_return_parquet_path: data/features_with_exp_returns.parquet
   start_date: "2024-12-01"
-  end_date:   "2025-08-25"
+  end_date:   "2025-08-29"
 
 exchange:
   name: binance
@@ -87,17 +87,17 @@ trading_logic:
 
   # 2. Signal generation & gating 
   horizon_weights: [0.1, 0.2, 0.35, 0.35]
-  z_threshold:       0.2    
+  z_threshold:       0.26   
   threshold_mult:    0.05      
-  min_edge_bps:      8.0      
+  min_edge_bps:      9.0      
   persistence:       1        
-  quantile_window:   400
+  quantile_window:   300
   entry_quantile:    0.70      
 
   # 3. Risk & exit management
   vol_window:         30
   sigma_floor_bps:    2.0
-  stop_loss_atr_mult: 5.0
+  stop_loss_atr_mult: 4.0
   take_profit_atr_mult: 6.0
 
 

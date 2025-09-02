@@ -31,7 +31,7 @@ def main():
     args = parse_args()
     cfg = load_config(args.config, overrides=args.set)
 
-    # ─── Logging Setup ─────────────────────────────────────────────────────
+    #Logging Setup
     log_cfg = cfg['logging']
     handlers = []
     if log_cfg['handlers']['console']['enabled']:
@@ -50,32 +50,32 @@ def main():
     logger = logging.getLogger(__name__)
     logger.info("Loaded config, starting up")
 
-    # ─── Data Pipeline ──────────────────────────────────────────────────────
+    # Data Pipeline
     interval = cfg['exchange']['interval_minute']
     raw_path = Path(cfg['data']['raw_data_path'])
     proc_path = Path(cfg['data']['feature_data_path'])
 
     bulk_download.main()
 
-    # 1) Load raw CSV
+    # Load raw CSV
     df = pd.read_csv(raw_path, parse_dates=["time"])
     df.set_index("time", inplace=True)
     df.sort_index(inplace=True)
 
-    # 2) Validate raw download
+    #Validate raw download
     validate_ohlcv(df, minutes=interval, label="raw_after_download")
 
-    # 3) Clean and re-validate
+    # Clean and re-validate
     df = clean_ohlcv(df, cfg['data'])
     validate_ohlcv(df, minutes=interval, label="cleaned")
 
-    # 4) Feature engineering
+    # Feature engineering
     df = add_technical_indicators(df, cfg['features'])
     df = add_return_features(df, cfg['features'])
     if cfg['features'].get('drop_na', True):
         df.dropna(inplace=True)
 
-    # 5) Validate after feature engineering
+    # Validate after feature engineering
     validate_ohlcv(df, minutes=interval, label="after_features")
 
     # Save engineered dataset
@@ -85,38 +85,37 @@ def main():
 
 
 
-    # ─── Data Slice ────────────────────────────────────────────────────
+    # Data Slice
     tr_cfg = cfg.get('training', {})
-    start = tr_cfg.get('start_date')  # e.g., "2025-06-01"
-    end   = tr_cfg.get('end_date')    # exclusive
+    start = tr_cfg.get('start_date')  
+    end   = tr_cfg.get('end_date')   
 
     if start:
         df = df[df.index >= pd.to_datetime(start)]
     if end:
         df = df[df.index < pd.to_datetime(end)]
 
-    # ─── Horizon Ensemble Training & Saving ─────────────────────────────────
+    # Horizon Ensemble Training & Saving
     for h_str, model_path in cfg['trading_logic']['model_paths'].items():
         h = int(h_str)
         cfg['model']['horizon'] = h
 
-        # 1) build features & target for this horizon
+        # build features & target for this horizon
         X_h, y_h = prepare_features_and_target(df, cfg['model'])
         X_h = X_h.select_dtypes(include=[np.number]).astype('float32')  # reinforce numeric+dtype
         X_h.columns = [c.lower().replace('.', '_') for c in X_h.columns]
 
 
-        # 2) hyperparameter tuning
+        #hyperparameter tuning
         best_params, tuning_path = run_tuning(X_h, y_h, cfg['tuning'], cfg['model'])
 
-        # 3) train final model on full set
+        # train final model on full set
         model_h, shap_vals_h, top_feats_h = run_training_pipeline(
             X_h, y_h, tuning_path,
             cfg['training'], cfg['model'], cfg['selection']
         )
         
 
-        # Decide the final dataset/model that the STRATEGY will load
         if cfg['selection']['method'] == 'shap':
             # Retrain on SHAP-selected features
             X_top_h = X_h[top_feats_h].astype('float32')
