@@ -14,6 +14,8 @@ exchange:
   timeout:    30
   retries:    3       # how many times to retry on transient failures
   retry_backoff: 5    # seconds between retry attempts
+
+  #these are redundant - no security issues. 
   api_key:    "d54pnJd9e84rSo+/mrh74vSriju7L6phIlNq5SWyNjVLUrSrfFI+4vuM"
   api_secret: "+XYZr9fZWuI/tqWYr69768JjAUGrgI+RX1YR95Dckml/jItosuneE02pfbzAM9Fy5q8Kuzesf2f3c1NvXCNSkw=="
 
